@@ -52,6 +52,11 @@
   .btn-primary:hover{box-shadow:0 10px 30px -8px rgba(61,240,140,.85)}
   .btn-ghost{color:var(--ink);border:1px solid var(--line);background:#fff}
   .btn-ghost:hover{border-color:#C9D2DF}
+  /* outline pill — same shape as the primary, adapts to nav light/dark state */
+  .btn-outline{background:transparent;border:1px solid rgba(244,248,255,.34);color:#F4F8FF}
+  .btn-outline:hover{border-color:#F4F8FF;background:rgba(255,255,255,.06)}
+  nav.scrolled .btn-outline{border-color:var(--line);color:var(--ink)}
+  nav.scrolled .btn-outline:hover{border-color:#C9D2DF;background:transparent}
   @media(max-width:760px){.navlinks .nl{display:none}}
 
   /* ---------- hero ---------- */
@@ -196,8 +201,8 @@
     <a class="nl" href="#inside">Inside</a>
     <a class="nl" href="#why">Why now</a>
     <a class="nl" href="#moat">The decoder</a>
-    <a class="nl" href="jazz-hands.html">Jazz Hands</a>
     <a class="nl" href="overview.html">Overview</a>
+    <a class="btn btn-outline" href="jazz-hands.html">Jazz Hands</a>
     <a class="btn btn-primary" href="demo.html">Glove Demo</a>
   </div>
 </div></nav>

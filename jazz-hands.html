@@ -71,16 +71,26 @@
   .abdot.ok{background:var(--armed);box-shadow:0 0 10px var(--armed)}
 
   /* virtual keyboard the camera "builds" */
-  #kbd{position:absolute;left:50%;bottom:5vh;transform:translateX(-50%);z-index:5;display:flex;flex-direction:column;gap:8px;
-    padding:14px;border-radius:16px;background:rgba(8,11,18,.5);border:1px solid var(--line);backdrop-filter:blur(6px);
+  #kbd{position:absolute;left:50%;bottom:4vh;transform:translateX(-50%);z-index:5;display:flex;flex-direction:column;
+    gap:clamp(6px,0.9vw,12px);width:min(96vw,1320px);padding:clamp(12px,1.4vw,20px);
+    border-radius:18px;background:rgba(8,11,18,.5);border:1px solid var(--line);backdrop-filter:blur(6px);
     opacity:.4;transition:opacity .4s,border-color .4s;pointer-events:none}
   #kbd.live{opacity:1;border-color:rgba(61,240,140,.35)}
-  .krow{display:flex;gap:8px;justify-content:center}
-  .key{width:clamp(34px,4.6vw,56px);height:clamp(34px,4.6vw,56px);border-radius:10px;display:grid;place-items:center;
-    font-family:"JetBrains Mono",monospace;font-size:clamp(13px,1.6vw,18px);color:var(--ink);
+  .krow{display:flex;gap:clamp(6px,0.9vw,12px);justify-content:center}
+  .key{flex:1;max-width:120px;aspect-ratio:1/.92;border-radius:11px;display:grid;place-items:center;
+    font-family:"JetBrains Mono",monospace;font-size:clamp(14px,2vw,24px);color:var(--ink);
     background:rgba(20,28,42,.9);border:1px solid var(--line);transition:transform .08s,background .12s,box-shadow .12s}
-  .key.space{width:clamp(150px,24vw,320px)}
+  .key.space{flex:0 0 auto;width:min(46vw,640px);aspect-ratio:auto;height:clamp(40px,5vw,72px)}
   .key.hit{background:var(--armed);color:#04130b;border-color:var(--armed);box-shadow:0 0 22px rgba(61,240,140,.7);transform:translateY(2px) scale(.96)}
+
+  /* hand-placement bounding box (X + Z guidance) */
+  #zone{position:absolute;z-index:4;display:none;border:2px dashed rgba(245,169,90,.5);border-radius:22px;pointer-events:none;
+    transition:border-color .3s,background .3s}
+  #zone.ok{border-color:rgba(61,240,140,.7);background:rgba(61,240,140,.045)}
+  #zone .zlbl{position:absolute;left:50%;top:-13px;transform:translateX(-50%);white-space:nowrap;
+    font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase;
+    background:rgba(10,14,22,.88);border:1px solid var(--line);border-radius:999px;padding:4px 13px;color:var(--muted)}
+  #zone.ok .zlbl{color:var(--armed);border-color:rgba(61,240,140,.5)}
 
   .note{position:absolute;left:18px;bottom:16px;max-width:240px;font-family:"JetBrains Mono",monospace;font-size:10px;color:var(--dim);line-height:1.65;z-index:5}
 
@@ -128,6 +138,9 @@
     <div class="sub" id="absub">we’ll confirm your hands are positioned over the keyboard</div>
   </div>
 
+  <!-- hand-placement bounding box (X + Z guidance) -->
+  <div id="zone"><span class="zlbl" id="zlbl">place both hands here</span></div>
+
   <!-- virtual keyboard (built once the camera sees you) -->
   <div id="kbd"></div>
 
@@ -169,6 +182,26 @@ function keyAt(vx,vy){ let best=null,bd=1e9; for(const k of keyEls){const dx=vx-
   if(best && Math.sqrt(bd) < Math.max(best.w,best.h)*1.7) return best; return null; }
 function flashKey(el){ el.classList.add('hit'); setTimeout(()=>el.classList.remove('hit'),150); }
 
+// ---- hand-placement bounding box: X over the keyboard, Z via apparent hand size ----
+const Z_MIN=0.13, Z_MAX=0.40;            // normalized hand span: below = too far, above = too close
+let zone={x:0,y:0,w:0,h:0};
+function positionZone(){
+  const r=kbd.getBoundingClientRect();
+  const padX=Math.min(44,r.width*0.04);
+  const top=Math.max(150, r.top - 70);   // sit over the keyboard, below the typed-output bar
+  zone={x:r.left-padX, y:top, w:r.width+padX*2, h:(r.bottom-12)-top};
+  const z=$('zone'); z.style.left=zone.x+'px'; z.style.top=zone.y+'px'; z.style.width=zone.w+'px'; z.style.height=zone.h+'px';
+}
+function handMetrics(lm){
+  let minx=1,maxx=0,miny=1,maxy=0,sx=0,sy=0;
+  for(const p of lm){ if(p.x<minx)minx=p.x; if(p.x>maxx)maxx=p.x; if(p.y<miny)miny=p.y; if(p.y>maxy)maxy=p.y; sx+=p.x; sy+=p.y; }
+  const cx=(1-sx/lm.length)*window.innerWidth, cy=(sy/lm.length)*window.innerHeight;   // mirrored, viewport space
+  const size=Math.max(maxx-minx,maxy-miny);                                            // apparent size ≈ Z depth
+  const inX=cx>=zone.x&&cx<=zone.x+zone.w, inY=cy>=zone.y&&cy<=zone.y+zone.h;
+  const depth = size<Z_MIN?-1 : size>Z_MAX?1 : 0;                                       // -1 far, +1 close, 0 ok
+  return {cx,cy,size,minx,maxx,miny,maxy,inX,inY,depth,ok:(inX&&inY&&depth===0)};
+}
+
 let landmarker=null, running=false, lastT=0, fps=0, keys=0, typed='', t0=0;
 let alignFrames=0, aligned=false;
 const state={};
@@ -183,8 +216,8 @@ function setAlign(ok){
   $('abbox').classList.toggle('ok',ok); $('abdot').classList.toggle('ok',ok);
   $('kbd').classList.toggle('live',ok);
   $('dot').className='dot '+(ok?'on':'scan'); $('state').textContent=ok?'ALIGNED · TYPING':'ALIGNING…';
-  $('abtxt').textContent=ok?'Hands aligned — type away':'Hold both hands over the keyboard';
-  $('absub').textContent=ok?'tap a key in the air; it lights up + appears above':'palms toward the camera, fingers over the keys';
+  $('abtxt').textContent=ok?'Hands aligned — type away':'Line both hands up in the box';
+  $('absub').textContent=ok?'tap a key in the air; it lights up + appears above':'palms toward the camera, both hands inside the dashed box';
   if(ok){ $('align').style.opacity='0'; setTimeout(()=>{if(aligned)$('align').style.opacity='0';},10); }
   else $('align').style.opacity='1';
 }
@@ -209,12 +242,13 @@ async function init(){
   }
   hideMsg(); running=true; t0=performance.now();
   $('abbox').classList.remove('tappable'); $('abbox').style.cursor='default'; $('align').style.pointerEvents='none';
+  $('zone').style.display='block';
   $('dot').className='dot scan'; $('state').textContent='ALIGNING…';
-  $('abtxt').textContent='Hold both hands over the keyboard';
+  $('abtxt').textContent='Line both hands up in the box';
   resize(); requestAnimationFrame(loop);
 }
 
-function resize(){ cv.width=vid.videoWidth||window.innerWidth; cv.height=vid.videoHeight||window.innerHeight; cacheKeys(); }
+function resize(){ cv.width=vid.videoWidth||window.innerWidth; cv.height=vid.videoHeight||window.innerHeight; cacheKeys(); positionZone(); }
 window.addEventListener('resize',resize);
 $('sens').addEventListener('input',e=>$('sv').textContent=(e.target.value/1000).toFixed(3));
 $('start').addEventListener('click',init);
@@ -250,14 +284,27 @@ function loop(){
     ctx.clearRect(0,0,cv.width,cv.height);
     const n=res.landmarks?res.landmarks.length:0; $('hands').textContent=n;
 
-    // alignment gate: need both hands present, held steady
-    if(n>=2) alignFrames=Math.min(alignFrames+1,24); else alignFrames=Math.max(alignFrames-2,0);
-    setAlign(alignFrames>=15);
+    // placement gate: both hands inside the box (X) and at the right depth (Z), held steady
+    const M=[]; let placed=0, reason='';
+    for(let h=0;h<n;h++){ const m=handMetrics(res.landmarks[h]); M.push(m);
+      if(m.ok) placed++;
+      else if(m.depth<0) reason='move hands closer';
+      else if(m.depth>0) reason='move hands back';
+      else if(!reason) reason='center hands in the box'; }
+    if(placed>=2) alignFrames=Math.min(alignFrames+1,22); else alignFrames=Math.max(alignFrames-2,0);
+    setAlign(alignFrames>=14);
+    $('zone').classList.toggle('ok',aligned);
+    if(aligned){ $('zlbl').textContent='aligned — type away'; }
+    else{ const sub = n<2 ? 'show both hands to the camera' : (reason||'hold steady…');
+      $('absub').textContent=sub; $('zlbl').textContent = n<2 ? 'place both hands here' : (reason||'place both hands here'); }
 
     ctx.save(); ctx.translate(cv.width,0); ctx.scale(-1,1);   // mirror to match the selfie video
     for(let h=0;h<n;h++){
-      const lm=res.landmarks[h];
+      const lm=res.landmarks[h]; const m=M[h];
       const hand=res.handedness?.[h]?.[0]?.categoryName || (h?'Right':'Left');
+      // per-hand bounding box: green when correctly placed, amber otherwise
+      ctx.strokeStyle=m.ok?'rgba(61,240,140,.85)':'rgba(245,169,90,.7)'; ctx.lineWidth=2; ctx.setLineDash([7,6]);
+      ctx.strokeRect(m.minx*cv.width,m.miny*cv.height,(m.maxx-m.minx)*cv.width,(m.maxy-m.miny)*cv.height); ctx.setLineDash([]);
       ctx.strokeStyle='rgba(150,170,200,.5)'; ctx.lineWidth=2;
       for(const [a,b] of CONN){ ctx.beginPath(); ctx.moveTo(lm[a].x*cv.width,lm[a].y*cv.height); ctx.lineTo(lm[b].x*cv.width,lm[b].y*cv.height); ctx.stroke(); }
       ctx.fillStyle='rgba(200,215,235,.7)';
