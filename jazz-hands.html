@@ -62,7 +62,9 @@
   /* alignment banner */
   #align{position:absolute;left:50%;top:48%;transform:translate(-50%,-50%);z-index:6;text-align:center;pointer-events:none;transition:opacity .4s}
   #align .ab{display:inline-flex;align-items:center;gap:10px;padding:12px 20px;border-radius:999px;
-    background:rgba(10,14,22,.78);border:1px solid var(--line);backdrop-filter:blur(10px);font-size:15px;font-weight:600}
+    background:rgba(10,14,22,.78);border:1px solid var(--line);backdrop-filter:blur(10px);font-size:15px;font-weight:600;
+    pointer-events:auto;cursor:pointer;transition:border-color .15s,background .15s}
+  #align .ab.tappable:hover{border-color:rgba(61,240,140,.5);background:rgba(61,240,140,.1)}
   #align .ab.ok{border-color:rgba(61,240,140,.5);color:var(--armed)}
   #align .sub{margin-top:10px;font-family:"JetBrains Mono",monospace;font-size:11px;color:var(--muted);letter-spacing:.04em}
   .abdot{width:9px;height:9px;border-radius:50%;background:var(--standby)}
@@ -206,6 +208,7 @@ async function init(){
     $('start').disabled=false; return;
   }
   hideMsg(); running=true; t0=performance.now();
+  $('abbox').classList.remove('tappable'); $('abbox').style.cursor='default'; $('align').style.pointerEvents='none';
   $('dot').className='dot scan'; $('state').textContent='ALIGNING…';
   $('abtxt').textContent='Hold both hands over the keyboard';
   resize(); requestAnimationFrame(loop);
@@ -215,6 +218,9 @@ function resize(){ cv.width=vid.videoWidth||window.innerWidth; cv.height=vid.vid
 window.addEventListener('resize',resize);
 $('sens').addEventListener('input',e=>$('sv').textContent=(e.target.value/1000).toFixed(3));
 $('start').addEventListener('click',init);
+// the centre alignment banner is also a start button until the camera is running
+$('abbox').classList.add('tappable');
+$('abbox').addEventListener('click',()=>{ if(!running && !$('start').disabled) init(); });
 $('clear').addEventListener('click',()=>{ typed=''; keys=0; t0=performance.now(); renderTyped(); $('keys').textContent='0'; $('wpm').textContent='0'; });
 
 function renderTyped(){
