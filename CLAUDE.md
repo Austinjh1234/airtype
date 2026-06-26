@@ -16,6 +16,12 @@ HID keyboard. This repo is the **pitch/prototype site**, not the firmware/ML sys
   glove with sensor components, real labeled QWERTY keyboard, supervised-training
   visualization, keyboard↔mouse gesture, view controls (freeze spin / lock movement),
   and top-right Home + Overview links. (Was `index.html` before the landing page landed.)
+- `jazz-hands.html` — webcam machine-vision demo (MediaPipe Tasks-Vision `HandLandmarker`
+  via CDN, single file, vanilla JS). Tracks both hands, gates typing behind a hand-alignment
+  confirmation, renders a virtual QWERTY keyboard, and emits the key under each fingertip tap
+  (position-based, not just home-row) into a prominent on-screen output bar. Needs a secure
+  origin (localhost or the live HTTPS site); degrades gracefully with a "run locally" message.
+  Accuracy is labelled illustrative, not measured.
 - `overview.html` — print-ready investor memo (Why Now → concept → how it works →
   competition → market → requirements → concept→MVP plan → hurdles → why exciting).
   Has a "Print / Save PDF" button.
