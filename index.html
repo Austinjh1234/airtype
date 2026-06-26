@@ -39,7 +39,7 @@
   /* logo + nav links are LIGHT over the dark hero, and flip DARK once the nav goes light on scroll */
   .logo{font-size:20px;font-weight:700;letter-spacing:-.01em;color:#F4F8FF;transition:color .35s}
   nav.scrolled .logo{color:var(--ink)}
-  .logo b{background:var(--grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .logo b{color:#0E9C90}  /* solid teal wordmark — matches the /overview logo */
   .navlinks{display:flex;align-items:center;gap:30px}
   .navlinks a.nl{font-size:14.5px;color:rgba(244,248,255,.82);font-weight:500;transition:color .2s}
   .navlinks a.nl:hover{color:#fff}
@@ -106,8 +106,9 @@
   .card{background:#fff;border:1px solid var(--line);border-radius:20px;padding:28px;transition:transform .3s,box-shadow .3s,border-color .3s}
   .card:hover{transform:translateY(-4px);box-shadow:0 24px 50px -30px rgba(13,22,40,.28);border-color:#D7DEEA}
   .band.alt .card{background:#fff}
-  .ic{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;font-size:20px;margin-bottom:16px;
+  .ic{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;margin-bottom:16px;
     background:rgba(91,184,255,.12)}
+  .ic svg{width:24px;height:24px}
   .card h3{font-size:19px;font-weight:600;letter-spacing:-.01em;margin-bottom:8px}
   .card p{font-size:15px;color:var(--ink2);line-height:1.55}
   .card .num{font-family:"JetBrains Mono",monospace;font-size:12px;color:var(--muted);letter-spacing:.1em;margin-bottom:14px}
@@ -238,9 +239,25 @@
       <p class="lead">AirType maps the QWERTY finger movements that live in your muscle memory — it doesn't ask you to learn a new input language. Put the gloves on, lock to a home-row reference, and type the way you always have. Anywhere.</p>
     </div>
     <div class="grid g3">
-      <div class="card reveal"><div class="ic" style="background:rgba(52,217,206,.14)">⌨️</div><h3>Type on anything</h3><p>Phones, laptops, AR glasses, a TV across the room. If it pairs with a Bluetooth keyboard, it works with AirType — no app, no driver.</p></div>
-      <div class="card reveal"><div class="ic" style="background:rgba(91,184,255,.14)">🖐️</div><h3>Ten fingers, full speed</h3><p>Not tap-one-letter-at-a-time. Real touch-typing posture, so trained typists keep the throughput they already have.</p></div>
-      <div class="card reveal"><div class="ic" style="background:rgba(245,169,90,.16)">🖱️</div><h3>Keyboard ↔ mouse</h3><p>Bring two fingers together to enter mouse mode — point, left-click, right-click — then spread back to the home row to keep typing.</p></div>
+      <div class="card reveal"><div class="ic" style="background:rgba(52,217,206,.14)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#34D9CE" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2.3" y="6" width="19.4" height="12" rx="2.6"/>
+          <path d="M6 9.6h0M9 9.6h0M12 9.6h0M15 9.6h0M18 9.6h0" stroke-width="2.1"/>
+          <path d="M6 12.6h0M9 12.6h0M12 12.6h0M15 12.6h0M18 12.6h0" stroke-width="2.1"/>
+          <path d="M8.3 15.3h7.4"/>
+        </svg></div><h3>Type on anything</h3><p>Phones, laptops, AR glasses, a TV across the room. If it pairs with a Bluetooth keyboard, it works with AirType — no app, no driver.</p></div>
+      <div class="card reveal"><div class="ic" style="background:rgba(91,184,255,.14)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#5BB8FF" stroke-width="2" stroke-linecap="round">
+          <path d="M5 19.5V11"/><circle cx="5" cy="7.7" r="1.5" fill="#5BB8FF" stroke="none"/>
+          <path d="M9.7 19.5V8"/><circle cx="9.7" cy="4.7" r="1.5" fill="#5BB8FF" stroke="none"/>
+          <path d="M14.3 19.5V9.2"/><circle cx="14.3" cy="5.9" r="1.5" fill="#5BB8FF" stroke="none"/>
+          <path d="M19 19.5V12"/><circle cx="19" cy="8.7" r="1.5" fill="#5BB8FF" stroke="none"/>
+        </svg></div><h3>Ten fingers, full speed</h3><p>Not tap-one-letter-at-a-time. Real touch-typing posture, so trained typists keep the throughput they already have.</p></div>
+      <div class="card reveal"><div class="ic" style="background:rgba(245,169,90,.16)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#F5A95A" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="7" y="3.3" width="10" height="17.4" rx="5"/>
+          <path d="M12 7v3.4"/>
+        </svg></div><h3>Keyboard ↔ mouse</h3><p>Bring two fingers together to enter mouse mode — point, left-click, right-click — then spread back to the home row to keep typing.</p></div>
     </div>
   </div>
 </section>
