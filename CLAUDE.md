@@ -8,10 +8,14 @@ touch-typing into text (and pointer control) on any device, output as a standard
 HID keyboard. This repo is the **pitch/prototype site**, not the firmware/ML system.
 
 ## Files
-- `index.html` — interactive 3D demo (Three.js r128, single file, vanilla JS). Realistic
+- `index.html` — Apple-style marketing landing page (single file, vanilla JS, no deps).
+  Dark gradient hero with an animated "engine" viz (per-finger sensor nodes + live
+  typewriter), scroll-reveal sections (what / how it works / why now / the decoder / CTA),
+  sticky blur nav. Links to the demo and overview.
+- `demo.html` — interactive 3D demo (Three.js r128, single file, vanilla JS). Realistic
   glove with sensor components, real labeled QWERTY keyboard, supervised-training
   visualization, keyboard↔mouse gesture, view controls (freeze spin / lock movement),
-  and a top-right link to the overview.
+  and top-right Home + Overview links. (Was `index.html` before the landing page landed.)
 - `overview.html` — print-ready investor memo (Why Now → concept → how it works →
   competition → market → requirements → concept→MVP plan → hurdles → why exciting).
   Has a "Print / Save PDF" button.

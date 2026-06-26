@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AirType — glove-to-text interface</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0A0E16; --panel:rgba(16,22,35,0.82); --line:#1E2C44;
+    --ink:#DCE6F2; --muted:#6F8198; --dim:#43526B;
+    --left:#34D9CE; --right:#F5A95A; --armed:#3DF08C; --standby:#C9A24B;
+    --pinky:#9B8CFF; --ring:#FF8FB3; --middle:#5BE0A8; --index:#5BB8FF; --thumb:#F5C45A;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;width:100%;overflow:hidden;background:var(--bg);color:var(--ink);
+    font-family:"Space Grotesk",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  #app{position:relative;width:100vw;height:100vh}
+  canvas#scene{display:block;position:absolute;inset:0}
+  .mono{font-family:"JetBrains Mono",ui-monospace,monospace}
+
+  header{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;
+    align-items:center;padding:18px 22px;pointer-events:none;z-index:6}
+  .brand{display:flex;align-items:baseline;gap:10px}
+  .brand h1{font-size:18px;font-weight:600;letter-spacing:.02em}
+  .brand .sub{font-size:12px;color:var(--muted);letter-spacing:.04em}
+  .statepill{pointer-events:auto;display:flex;align-items:center;gap:9px;padding:7px 14px;
+    background:var(--panel);border:1px solid var(--line);border-radius:999px;
+    backdrop-filter:blur(10px);font-family:"JetBrains Mono",monospace;font-size:11.5px;letter-spacing:.08em}
+  .headright{display:flex;align-items:center;gap:10px;pointer-events:auto}
+  .ovlink{display:inline-flex;align-items:center;padding:7px 15px;border-radius:999px;
+    background:rgba(61,240,140,.1);border:1px solid rgba(61,240,140,.45);color:var(--armed);
+    font-family:"Space Grotesk",sans-serif;font-size:13px;font-weight:600;text-decoration:none;
+    backdrop-filter:blur(10px);transition:.15s;letter-spacing:.01em}
+  .ovlink:hover{background:rgba(61,240,140,.18);border-color:var(--armed)}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--standby);transition:.4s;box-shadow:0 0 10px var(--standby)}
+  .dot.on{background:var(--armed);box-shadow:0 0 14px var(--armed)}
+
+  .panel{position:absolute;background:var(--panel);border:1px solid var(--line);
+    border-radius:14px;backdrop-filter:blur(12px);z-index:6}
+  #controls{left:22px;top:78px;width:236px;padding:14px}
+  .grp{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);
+    font-family:"JetBrains Mono",monospace;margin:13px 2px 8px}
+  .grp:first-child{margin-top:0}
+  button.act{width:100%;display:flex;align-items:center;gap:10px;padding:10px 12px;margin-bottom:7px;
+    background:transparent;border:1px solid var(--line);border-radius:10px;color:var(--ink);
+    font-family:"Space Grotesk",sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:.15s;text-align:left}
+  button.act:hover{border-color:#33486b;background:rgba(91,184,255,.07)}
+  button.act:active{transform:scale(.985)}
+  button.act:disabled{opacity:.4;cursor:not-allowed}
+  button.act .ic{width:20px;height:20px;flex:none;border-radius:6px;display:grid;place-items:center;
+    font-size:12px;background:rgba(91,184,255,.12);color:var(--index)}
+  button.act.on{border-color:#33486b;background:rgba(91,184,255,.12)}
+  button.act.on .ic{background:rgba(91,184,255,.22)}
+  button.primary{border-color:rgba(61,240,140,.4);background:rgba(61,240,140,.08)}
+  button.primary .ic{background:rgba(61,240,140,.15);color:var(--armed)}
+  button.primary:hover{background:rgba(61,240,140,.14)}
+  button.train{border-color:rgba(245,169,90,.4);background:rgba(245,169,90,.08)}
+  button.train .ic{background:rgba(245,169,90,.16);color:var(--right)}
+
+  .sliderrow{margin:10px 2px 2px}
+  .sliderrow .lab{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);
+    font-family:"JetBrains Mono",monospace;margin-bottom:6px}
+  input[type=range]{width:100%;-webkit-appearance:none;height:3px;border-radius:2px;background:var(--line);outline:none}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;border-radius:50%;
+    background:var(--index);cursor:pointer;box-shadow:0 0 8px rgba(91,184,255,.6)}
+  input[type=range]::-moz-range-thumb{width:15px;height:15px;border:none;border-radius:50%;background:var(--index);cursor:pointer}
+
+  .legend{margin-top:13px;border-top:1px solid var(--line);padding-top:12px}
+  .legrow{display:flex;align-items:center;gap:9px;margin-bottom:7px;font-size:12px}
+  .legrow:last-child{margin-bottom:0}
+  .swatch{width:11px;height:11px;border-radius:3px;flex:none}
+  .legrow span.k{color:var(--muted);font-family:"JetBrains Mono",monospace;font-size:10.5px;margin-left:auto}
+
+  #display{right:22px;top:78px;width:330px;padding:16px}
+  #display h2{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);
+    font-family:"JetBrains Mono",monospace;font-weight:500;margin-bottom:11px}
+  .screen{background:#070A11;border:1px solid var(--line);border-radius:10px;padding:13px 14px;
+    min-height:108px;font-family:"JetBrains Mono",monospace;font-size:14px;line-height:1.7;color:#BFE9E2;word-break:break-word}
+  .screen .prompt{color:var(--dim)}
+  .caret{display:inline-block;width:8px;height:17px;background:var(--armed);vertical-align:-3px;margin-left:1px;animation:blink 1.05s steps(1) infinite}
+  @keyframes blink{50%{opacity:0}}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+  .stat{background:rgba(255,255,255,.025);border:1px solid var(--line);border-radius:9px;padding:9px 10px}
+  .stat .v{font-family:"JetBrains Mono",monospace;font-size:17px;font-weight:500}
+  .stat .l{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-top:3px}
+
+  #pipeline{left:50%;transform:translateX(-50%);bottom:20px;display:flex;align-items:center;gap:6px;padding:11px 14px;z-index:6;max-width:94vw}
+  .stage{display:flex;flex-direction:column;gap:3px;padding:8px 12px;border:1px solid var(--line);border-radius:9px;min-width:92px;transition:.18s;background:rgba(255,255,255,.012)}
+  .stage.live{border-color:var(--index);background:rgba(91,184,255,.12)}
+  .stage .n{font-family:"JetBrains Mono",monospace;font-size:9px;color:var(--dim)}
+  .stage .t{font-size:11px;color:var(--muted);font-weight:500;white-space:nowrap}
+  .stage.live .t{color:var(--ink)}
+  .arrow{color:var(--dim);font-size:13px}
+
+  /* training panel */
+  #train{left:50%;transform:translateX(-50%);bottom:20px;width:760px;max-width:95vw;padding:14px 16px;z-index:7;display:none}
+  #train.show{display:block}
+  .train-head{display:flex;align-items:center;gap:14px;margin-bottom:12px}
+  .train-head .ttl{font-size:13px;font-weight:600}
+  .train-head .ttl small{display:block;color:var(--muted);font-weight:400;font-size:11px;margin-top:2px}
+  .accwrap{flex:1;display:flex;align-items:center;gap:10px}
+  .accbar{flex:1;height:6px;background:var(--line);border-radius:4px;overflow:hidden}
+  .accfill{height:100%;width:0%;background:var(--armed);transition:width .2s;border-radius:4px}
+  .accnum{font-family:"JetBrains Mono",monospace;font-size:15px;min-width:48px;text-align:right}
+  .train-meta{font-family:"JetBrains Mono",monospace;font-size:10.5px;color:var(--muted);text-align:right;line-height:1.5}
+  .fgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+  .fcell{background:rgba(255,255,255,.02);border:1px solid var(--line);border-radius:8px;padding:7px 8px}
+  .fcell.active{border-color:var(--index)}
+  .fcell .top{display:flex;align-items:center;gap:6px;margin-bottom:5px}
+  .fcell .fdot{width:8px;height:8px;border-radius:2px;flex:none}
+  .fcell .fname{font-size:11px;font-weight:500}
+  .fcell .fside{font-family:"JetBrains Mono",monospace;font-size:9px;color:var(--dim);margin-left:auto}
+  .fcell canvas{width:100%;height:24px;display:block;border-radius:3px;background:#070A11}
+  .fcell .map{font-family:"JetBrains Mono",monospace;font-size:9.5px;color:var(--muted);margin-top:5px;height:13px;overflow:hidden;white-space:nowrap}
+  .fcell .map b{color:var(--ink);font-weight:500}
+
+  .hint{position:absolute;left:50%;top:54%;transform:translate(-50%,-50%);text-align:center;color:var(--muted);
+    font-size:13px;letter-spacing:.04em;pointer-events:none;z-index:5;transition:.5s}
+  .hint .big{font-size:15px;color:var(--ink);margin-bottom:6px;font-weight:500}
+  .hint.hide{opacity:0}
+  .note{position:absolute;left:22px;bottom:20px;font-size:10.5px;color:var(--dim);font-family:"JetBrains Mono",monospace;max-width:230px;line-height:1.6;z-index:6}
+
+  /* blueprint overlay */
+  #bp{position:absolute;inset:0;z-index:5;pointer-events:none;display:none}
+  #bp.show{display:block}
+  #bpsvg{position:absolute;inset:0;width:100%;height:100%}
+  .bplabel{position:absolute;transform:translate(-50%,-50%);background:rgba(10,14,22,.9);
+    border:1px solid var(--line);border-radius:8px;padding:6px 9px;max-width:188px;backdrop-filter:blur(6px)}
+  .bplabel .h{font-size:11.5px;font-weight:600;color:var(--ink)}
+  .bplabel .d{font-size:10px;color:var(--muted);font-family:"JetBrains Mono",monospace;margin-top:1px;line-height:1.4}
+
+  /* mouse mode */
+  .modechip{display:inline-block;margin-left:8px;padding:2px 8px;border-radius:999px;font-family:"JetBrains Mono",monospace;
+    font-size:9px;letter-spacing:.12em;border:1px solid var(--line);color:var(--muted);vertical-align:1px}
+  .modechip.mouse{color:var(--left);border-color:rgba(52,217,206,.5);background:rgba(52,217,206,.12)}
+  #kbview.hide{display:none}
+  #mouseview{position:relative;height:106px;display:none}
+  #mouseview.show{display:block}
+  .mtarget{position:absolute;width:40px;height:40px;border-radius:9px;background:rgba(255,255,255,.04);
+    border:1px solid var(--line);display:grid;place-items:center;font-size:17px;color:var(--muted);transition:.18s}
+  .mtarget.lit{border-color:var(--armed);background:rgba(61,240,140,.16);color:var(--ink);transform:scale(1.08);box-shadow:0 0 14px rgba(61,240,140,.25)}
+  .mcursor{position:absolute;left:150px;top:46px;width:17px;height:17px;pointer-events:none;z-index:3;
+    transition:left .5s cubic-bezier(.4,0,.2,1),top .5s cubic-bezier(.4,0,.2,1);filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))}
+  .mripple{position:absolute;width:12px;height:12px;border-radius:50%;border:2px solid var(--armed);
+    transform:translate(-50%,-50%) scale(.4);opacity:.9;animation:rip .55s ease-out forwards;pointer-events:none;z-index:4}
+  .mripple.r{border-color:var(--right)}
+  @keyframes rip{to{transform:translate(-50%,-50%) scale(3.2);opacity:0}}
+  .mctx{position:absolute;min-width:96px;background:#0b1018;border:1px solid var(--line);border-radius:7px;
+    padding:4px;font-family:"Space Grotesk",sans-serif;font-size:11px;display:none;z-index:5}
+  .mctx.show{display:block}
+  .mctx div{padding:4px 8px;border-radius:4px;color:var(--ink)}
+  .glabel{position:absolute;left:2px;bottom:2px;font-family:"JetBrains Mono",monospace;font-size:9px;color:var(--dim)}
+
+  @media (max-width:980px){
+    #controls{top:auto;bottom:12px;left:12px;width:198px;padding:11px;max-height:70vh;overflow:auto}
+    #display{top:70px;right:12px;left:12px;width:auto}
+    .legend{display:none}
+    #pipeline,#train,#bp{display:none!important}
+    .note{display:none}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="brand"><h1>AirType</h1><span class="sub mono">glove-to-text interface</span></div>
+    <div class="headright">
+      <a class="ovlink" href="/" style="background:rgba(91,184,255,.08);border-color:rgba(91,184,255,.4);color:var(--index)">← Home</a>
+      <a class="ovlink" href="overview.html" target="_blank" rel="noopener">Overview ↗</a>
+      <div class="statepill"><span class="dot" id="statedot"></span><span id="statetxt">STANDBY · NOT ALIGNED</span></div>
+    </div>
+  </header>
+
+  <div class="panel" id="controls">
+    <div class="grp">Input</div>
+    <button class="act primary" id="btnAlign"><span class="ic">⊹</span>Align hands</button>
+    <button class="act" id="btnType" disabled><span class="ic">⌨</span>Type demo phrase</button>
+    <button class="act" id="btnClear" disabled><span class="ic">⌫</span>Clear screen</button>
+    <button class="act" id="btnMouse" disabled><span class="ic">➚</span>Mouse gesture</button>
+    <div class="sliderrow"><div class="lab"><span>Type speed</span><span id="spdVal">320 cpm</span></div>
+      <input type="range" id="speed" min="120" max="600" value="320" step="20"></div>
+
+    <div class="grp">View</div>
+    <button class="act" id="btnKb"><span class="ic">▦</span>Hide keyboard</button>
+    <button class="act" id="btnSpin"><span class="ic">⟳</span>Freeze spin</button>
+    <button class="act" id="btnLock"><span class="ic">⊘</span>Lock screen movement</button>
+    <button class="act" id="btnBp"><span class="ic">◎</span>Glove components</button>
+
+    <div class="grp">Calibrate model</div>
+    <button class="act train" id="btnTrain"><span class="ic">◷</span>Train glove</button>
+
+    <div class="legend">
+      <div class="legrow"><span class="swatch" style="background:var(--index)"></span>Index<span class="k">RTGB/YUHN</span></div>
+      <div class="legrow"><span class="swatch" style="background:var(--middle)"></span>Middle<span class="k">EDC/IK,</span></div>
+      <div class="legrow"><span class="swatch" style="background:var(--ring)"></span>Ring<span class="k">WSX/OL.</span></div>
+      <div class="legrow"><span class="swatch" style="background:var(--pinky)"></span>Pinky<span class="k">QAZ/P;/</span></div>
+      <div class="legrow"><span class="swatch" style="background:var(--thumb)"></span>Thumb<span class="k">space</span></div>
+    </div>
+  </div>
+
+  <div class="panel" id="display">
+    <h2>Synced display <span class="modechip" id="modechip">KEYBOARD</span></h2>
+    <div class="screen">
+      <div id="kbview"><span class="prompt">&gt; </span><span id="typed"></span><span class="caret"></span></div>
+      <div id="mouseview">
+        <div class="mtarget" id="tgt0" style="left:8px;top:30px">▦</div>
+        <div class="mtarget" id="tgt1" style="left:120px;top:12px">◉</div>
+        <div class="mtarget" id="tgt2" style="left:206px;top:48px">✦</div>
+        <svg class="mcursor" id="mcursor" viewBox="0 0 16 16"><path d="M1 1 L1 13 L4.6 9.6 L7 15 L9.1 14 L6.7 8.6 L11.3 8.6 Z" fill="#DCE6F2" stroke="#0A0E16" stroke-width="0.7"/></svg>
+        <div class="mctx" id="mctx"><div>Open</div><div>Copy</div><div>Properties</div></div>
+        <span class="glabel">hand moves cursor · index = left click · middle = right click</span>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="v mono" id="wpm">0</div><div class="l">WPM</div></div>
+      <div class="stat"><div class="v mono" id="lat">—</div><div class="l">Latency</div></div>
+      <div class="stat"><div class="v mono" id="keys">0</div><div class="l">Keys</div></div>
+    </div>
+  </div>
+
+  <div class="panel" id="pipeline">
+    <div class="stage"><span class="n mono">01</span><span class="t">IMU + flex capture</span></div><span class="arrow">›</span>
+    <div class="stage"><span class="n mono">02</span><span class="t">Filter &amp; fusion</span></div><span class="arrow">›</span>
+    <div class="stage"><span class="n mono">03</span><span class="t">Keystroke classifier</span></div><span class="arrow">›</span>
+    <div class="stage"><span class="n mono">04</span><span class="t">Disambiguate</span></div><span class="arrow">›</span>
+    <div class="stage"><span class="n mono">05</span><span class="t">BLE HID → screen</span></div>
+  </div>
+
+  <div class="panel" id="train">
+    <div class="train-head">
+      <div class="ttl">Supervised calibration<small>Each labelled keystroke trains that finger's signal → key map</small></div>
+      <div class="accwrap"><span class="mono" style="font-size:10.5px;color:var(--muted)">model acc</span>
+        <div class="accbar"><div class="accfill" id="accfill"></div></div><span class="accnum" id="accnum">0%</span></div>
+      <div class="train-meta" id="trainmeta">samples 0<br>epoch 0</div>
+    </div>
+    <div class="fgrid" id="fgrid"></div>
+  </div>
+
+  <div class="hint" id="hint">
+    <div class="big">Both hands are in standby</div>
+    Press <b>Align hands</b> to calibrate to the home row, or <b>Train glove</b> to run supervised calibration.
+  </div>
+  <div class="note">Gesture: R index + middle together → mouse (index = left click, middle = right click); spread back to home → keyboard. Latency / WPM / accuracy are illustrative. Drag to orbit · scroll to zoom.</div>
+
+  <div id="bp"><svg id="bpsvg"></svg></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+  "use strict";
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  const C={ left:0x34D9CE,right:0xF5A95A,armed:0x3DF08C,standby:0xC9A24B,
+    pinky:0x9B8CFF,ring:0xFF8FB3,middle:0x5BE0A8,index:0x5BB8FF,thumb:0xF5C45A };
+  const FC={pinky:C.pinky,ring:C.ring,middle:C.middle,index:C.index,thumb:C.thumb};
+  const HEX=h=>'#'+h.toString(16).padStart(6,'0');
+
+  const LEFT={'`':'pinky','1':'pinky','q':'pinky','a':'pinky','z':'pinky',
+    '2':'ring','w':'ring','s':'ring','x':'ring','3':'middle','e':'middle','d':'middle','c':'middle',
+    '4':'index','r':'index','f':'index','v':'index','5':'index','t':'index','g':'index','b':'index'};
+  const RIGHT={'6':'index','y':'index','h':'index','n':'index','7':'index','u':'index','j':'index','m':'index',
+    '8':'middle','i':'middle','k':'middle',',':'middle','9':'ring','o':'ring','l':'ring','.':'ring',
+    '0':'pinky','p':'pinky',';':'pinky','/':'pinky','-':'pinky','=':'pinky',"'":'pinky','[':'pinky',']':'pinky','\\':'pinky'};
+  function assign(ch){ if(ch===' ')return{side:'R',finger:'thumb'};
+    if(LEFT[ch])return{side:'L',finger:LEFT[ch]}; if(RIGHT[ch])return{side:'R',finger:RIGHT[ch]}; return{side:'R',finger:'index'}; }
+
+  // ---------------- scene ----------------
+  const app=document.getElementById('app');
+  const scene=new THREE.Scene();
+  scene.background=new THREE.Color(0x0A0E16);
+  scene.fog=new THREE.Fog(0x0A0E16,12,26);
+  const camera=new THREE.PerspectiveCamera(42,innerWidth/innerHeight,0.1,100);
+  const renderer=new THREE.WebGLRenderer({antialias:true});
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  renderer.setSize(innerWidth,innerHeight);
+  renderer.outputEncoding=THREE.sRGBEncoding;
+  renderer.domElement.id='scene';
+  app.insertBefore(renderer.domElement,app.firstChild);
+
+  scene.add(new THREE.HemisphereLight(0x4a6a9a,0x0a0e16,0.55));
+  const kl=new THREE.DirectionalLight(0xffffff,0.95); kl.position.set(4,10,7); scene.add(kl);
+  const rl=new THREE.DirectionalLight(0x5bb8ff,0.5); rl.position.set(-7,3,-5); scene.add(rl);
+  const pl=new THREE.PointLight(0xF5A95A,0.4,34); pl.position.set(6,3,5); scene.add(pl);
+  const grid=new THREE.GridHelper(44,44,0x1b2942,0x121a2b); grid.position.y=-2.05; scene.add(grid);
+
+  // ---------------- glove materials ----------------
+  const GRAPHITE=0x2b3442;
+  const gloveMat=new THREE.MeshStandardMaterial({color:GRAPHITE,roughness:0.72,metalness:0.12});
+  const seamMat =new THREE.MeshStandardMaterial({color:0x1a212c,roughness:0.8,metalness:0.1});
+  const pcbMat  =new THREE.MeshStandardMaterial({color:0x0e1620,roughness:0.5,metalness:0.45});
+  function accentMat(hex){return new THREE.MeshStandardMaterial({color:hex,roughness:0.55,metalness:0.2});}
+  function sensorMat(hex){return new THREE.MeshStandardMaterial({color:hex,emissive:hex,emissiveIntensity:0.7,roughness:0.4});}
+
+  // capsule-ish bone (tapered cylinder + rounded caps) pivoting at joint, extending -z
+  function bone(len,r0,r1,mat){
+    const g=new THREE.Group();
+    const cy=new THREE.Mesh(new THREE.CylinderGeometry(r1,r0,len,18),mat);
+    cy.rotation.x=Math.PI/2; cy.position.z=-len/2; g.add(cy);
+    const cap0=new THREE.Mesh(new THREE.SphereGeometry(r0,18,14),mat); g.add(cap0);
+    const cap1=new THREE.Mesh(new THREE.SphereGeometry(r1,18,14),mat); cap1.position.z=-len; g.add(cap1);
+    g.userData.len=len; g.userData.r=r1; return g;
+  }
+
+  // a finger: 3 fleshy bones + dorsal flex-sensor strips + joint sensor nodes
+  function buildFinger(lens,rad,fhex,accHex,refOut){
+    const sensors=[];
+    const b1=bone(lens[0],rad,rad*0.92,gloveMat);
+    const b2=bone(lens[1],rad*0.92,rad*0.84,gloveMat);
+    const b3=bone(lens[2],rad*0.84,rad*0.72,gloveMat);
+    b1.add(b2); b2.position.z=-lens[0];
+    b2.add(b3); b3.position.z=-lens[1];
+
+    // dorsal flex-sensor strip (the bend sensor) on top of b1 & b2
+    function strip(parent,len,r){
+      const s=new THREE.Mesh(new THREE.BoxGeometry(r*1.1,0.035,len*0.82),sensorMat(fhex));
+      s.position.set(0,r*0.96,-len*0.5); parent.add(s); s.material.emissiveIntensity=0.45; return s;
+    }
+    const fs1=strip(b1,lens[0],rad); strip(b2,lens[1],rad*0.9);
+
+    // joint sensor nodes (IMU/contact pads)
+    function node(parent,r){ const n=new THREE.Mesh(new THREE.SphereGeometry(r*0.42,14,12),sensorMat(accHex)); parent.add(n); sensors.push(n); return n; }
+    const jn=node(b1,rad); node(b2,rad*0.9);
+    // fingertip pad (haptic actuator)
+    const tip=new THREE.Mesh(new THREE.SphereGeometry(rad*0.5,16,14),sensorMat(fhex));
+    tip.position.z=-lens[2]; b3.add(tip); sensors.push(tip); tip.material.emissiveIntensity=0.5;
+
+    if(refOut){ refOut.flexStrip=fs1; refOut.knuckle=jn; refOut.tip=tip; }
+    return {root:b1,mcp:b1,pip:b2,dip:b3,tip,sensors,baseMcp:0,basePip:0,press:0,pressTarget:0};
+  }
+
+  function buildHand(side){
+    const accHex= side==='L'?C.left:C.right;
+    const group=new THREE.Group();
+    const refs={};
+
+    // palm pad (ellipsoid) + wrist + thenar mound = fleshy hand base
+    const palm=new THREE.Mesh(new THREE.SphereGeometry(1,24,18),gloveMat);
+    palm.scale.set(0.86,0.3,1.02); palm.position.set(0,0,0); group.add(palm);
+    const wrist=new THREE.Mesh(new THREE.SphereGeometry(1,20,16),gloveMat);
+    wrist.scale.set(0.62,0.3,0.5); wrist.position.set(0,0,0.92); group.add(wrist);
+    const thenar=new THREE.Mesh(new THREE.SphereGeometry(1,18,14),gloveMat);
+    thenar.scale.set(0.4,0.26,0.55); thenar.position.set(side==='L'?0.55:-0.55,0,0.2); group.add(thenar);
+    // dorsal accent piping
+    const pipe=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.04,1.7),accentMat(accHex));
+    pipe.position.set(0,0.27,0.05); group.add(pipe);
+
+    // wrist cuff
+    const cuff=new THREE.Mesh(new THREE.TorusGeometry(0.66,0.09,12,28),accentMat(accHex));
+    cuff.position.set(0,0,1.18); cuff.scale.set(1,0.85,1); group.add(cuff);
+    refs.cuff=cuff;
+
+    // control module (PCB) on back of hand
+    const mod=new THREE.Group(); mod.position.set(0,0.26,0.62); group.add(mod);
+    const pcb=new THREE.Mesh(new THREE.BoxGeometry(0.95,0.1,0.66),pcbMat); mod.add(pcb);
+    for(let i=0;i<3;i++){ const c=new THREE.Mesh(new THREE.BoxGeometry(0.16,0.07,0.16),seamMat);
+      c.position.set(-0.28+i*0.28,0.08,0.1); mod.add(c); }
+    refs.module=mod;
+    const ledMat=new THREE.MeshStandardMaterial({color:C.standby,emissive:C.standby,emissiveIntensity:1.0,roughness:0.3});
+    const led=new THREE.Mesh(new THREE.SphereGeometry(0.1,16,16),ledMat); led.position.set(0,0.12,-0.18); mod.add(led);
+    const ring=new THREE.Mesh(new THREE.TorusGeometry(0.15,0.018,8,22),seamMat); ring.position.copy(led.position); ring.rotation.x=Math.PI/2; mod.add(ring);
+    refs.led=led; refs.ledMat=ledMat;
+
+    // fingers
+    const fingers={}; const names=['index','middle','ring','pinky'];
+    const baseX=[-0.46,-0.15,0.16,0.46];
+    names.forEach((nm,i)=>{
+      const lens= nm==='middle'?[0.6,0.42,0.3]: nm==='index'?[0.56,0.4,0.28]: nm==='ring'?[0.54,0.38,0.27]:[0.44,0.3,0.24];
+      const rad= nm==='pinky'?0.105:0.125;
+      const fref={};
+      const f=buildFinger(lens,rad,FC[nm],accHex,fref);
+      let x=baseX[i]; if(side==='R')x=-x;
+      f.root.position.set(x,0.08,-0.96);
+      f.root.rotation.y=(side==='L'?1:-1)*(i-1.4)*0.045;
+      f.baseSplay=f.root.rotation.y;
+      f.root.rotation.x=-0.1; f.baseMcp=-0.1; f.basePip=-0.16; f.pip.rotation.x=f.basePip;
+      group.add(f.root); fingers[nm]=f;
+      if(nm==='index') refs.fingerRefs=fref;
+    });
+    // thumb
+    const tref={};
+    const thumb=buildFinger([0.4,0.32,0.24],0.13,FC.thumb,accHex,tref);
+    const tx=side==='L'?0.74:-0.74;
+    thumb.root.position.set(tx,0.02,-0.05);
+    thumb.root.rotation.set(-0.45,(side==='L'?-0.95:0.95),0);
+    thumb.baseSplay=thumb.root.rotation.y;
+    thumb.baseMcp=-0.45; thumb.basePip=-0.18; thumb.pip.rotation.x=thumb.basePip;
+    group.add(thumb.root); fingers.thumb=thumb;
+
+    let allSensors=[]; for(const k in fingers) allSensors=allSensors.concat(fingers[k].sensors);
+    return {group,fingers,refs,side,ledMat,allSensors};
+  }
+
+  const handL=buildHand('L'); handL.group.position.set(-2.15,0,0); scene.add(handL.group);
+  const handR=buildHand('R'); handR.group.position.set( 2.15,0,0); scene.add(handR.group);
+  const hands={L:handL,R:handR};
+
+  // ---------------- real QWERTY keyboard ----------------
+  const kbGroup=new THREE.Group(); kbGroup.position.set(0,-1.5,-1.0); scene.add(kbGroup);
+  const keyMeshes={};
+  const U=0.62, GAP=0.075, KH=0.2;
+  const ROWS=[
+    [['`',1,'`'],['1',1,'1'],['2',1,'2'],['3',1,'3'],['4',1,'4'],['5',1,'5'],['6',1,'6'],['7',1,'7'],['8',1,'8'],['9',1,'9'],['0',1,'0'],['-',1,'-'],['=',1,'='],['Bksp',2,null]],
+    [['Tab',1.5,null],['Q',1,'q'],['W',1,'w'],['E',1,'e'],['R',1,'r'],['T',1,'t'],['Y',1,'y'],['U',1,'u'],['I',1,'i'],['O',1,'o'],['P',1,'p'],['[',1,'['],[']',1,']'],['\\',1,'\\']],
+    [['Caps',1.75,null],['A',1,'a'],['S',1,'s'],['D',1,'d'],['F',1,'f'],['G',1,'g'],['H',1,'h'],['J',1,'j'],['K',1,'k'],['L',1,'l'],[';',1,';'],["'",1,"'"],['Enter',2.25,null]],
+    [['Shift',2.25,null],['Z',1,'z'],['X',1,'x'],['C',1,'c'],['V',1,'v'],['B',1,'b'],['N',1,'n'],['M',1,'m'],[',',1,','],['.',1,'.'],['/',1,'/'],['Shift',2.75,null]],
+    [['Ctrl',1.25,null],['Alt',1.25,null],[' ',6.5,' '],['Alt',1.25,null],['Ctrl',1.25,null]]
+  ];
+  let maxRowU=0; ROWS.forEach(r=>{let s=0;r.forEach(k=>s+=k[1]); maxRowU=Math.max(maxRowU,s);});
+  const xStart=-(maxRowU*U)/2;
+
+  function keyTexture(label,fhex,isMod){
+    const cv=document.createElement('canvas'); cv.width=cv.height=128; const x=cv.getContext('2d');
+    x.fillStyle='#1a2230'; roundRect(x,6,6,116,116,16); x.fill();
+    x.fillStyle='#cdd8e6'; x.textAlign='center'; x.textBaseline='middle';
+    x.font=(isMod?'500 26px':'500 '+(label.length>1?34:52)+'px')+' "JetBrains Mono", monospace';
+    x.fillText(label,64,58);
+    if(!isMod && fhex!=null){ x.fillStyle=HEX(fhex); roundRect(x,30,98,68,9,4); x.fill(); }
+    const t=new THREE.CanvasTexture(cv); t.anisotropy=4; return t;
+  }
+  function roundRect(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();}
+
+  ROWS.forEach((row,ri)=>{
+    let cursor=xStart;
+    row.forEach(spec=>{
+      const [label,w,ch]=spec;
+      const isMod=ch===null;
+      const fhex= ch&&ch!==' '? FC[assign(ch).finger] : (ch===' '?FC.thumb:null);
+      const cellW=w*U, kw=cellW-GAP, kd=U-GAP;
+      const kg=new THREE.Group();
+      kg.position.set(cursor+cellW/2,0,ri*U);
+      // body
+      const body=new THREE.Mesh(new THREE.BoxGeometry(kw,KH,kd),
+        new THREE.MeshStandardMaterial({color:0x141b27,roughness:0.6,metalness:0.25}));
+      kg.add(body);
+      // top cap with letter texture on +y face
+      const tex=keyTexture(label,fhex,isMod);
+      const capTop=new THREE.MeshStandardMaterial({map:tex,roughness:0.45,metalness:0.15,emissive:0x000000,emissiveIntensity:0});
+      const capSide=new THREE.MeshStandardMaterial({color:0x10161f,roughness:0.6});
+      const cap=new THREE.Mesh(new THREE.BoxGeometry(kw*0.9,0.05,kd*0.9),[capSide,capSide,capTop,capSide,capSide,capSide]);
+      cap.position.y=KH/2+0.025; kg.add(cap);
+      // home-row bump on F and J
+      if(ch==='f'||ch==='j'){ const bump=new THREE.Mesh(new THREE.BoxGeometry(0.12,0.02,0.03),capSide); bump.position.set(0,KH/2+0.06,kd*0.28); kg.add(bump); }
+      kbGroup.add(kg);
+      if(ch!==null){ keyMeshes[ch]={group:kg,top:capTop,color:fhex,flash:0,baseY:0}; }
+      cursor+=cellW;
+    });
+  });
+  // deck base
+  const deckW=maxRowU*U+0.5, deckD=ROWS.length*U+0.4;
+  const deck=new THREE.Mesh(new THREE.BoxGeometry(deckW,0.12,deckD),
+    new THREE.MeshStandardMaterial({color:0x0c1320,roughness:0.85,metalness:0.2}));
+  deck.position.set(0,-0.12,(ROWS.length-1)*U/2); kbGroup.add(deck);
+
+  // ---------------- orbit ----------------
+  let az=0,pol=0.92,rad=10.2,tgt=new THREE.Vector3(0,-0.45,0.3);
+  let dragging=false,lx=0,ly=0,lastInteract=0,spinFrozen=false,viewLocked=false;
+  function applyCam(){ camera.position.set(tgt.x+rad*Math.sin(pol)*Math.sin(az),tgt.y+rad*Math.cos(pol),tgt.z+rad*Math.sin(pol)*Math.cos(az)); camera.lookAt(tgt); }
+  renderer.domElement.addEventListener('pointerdown',e=>{if(viewLocked)return;dragging=true;lx=e.clientX;ly=e.clientY;lastInteract=performance.now();});
+  addEventListener('pointerup',()=>dragging=false);
+  addEventListener('pointermove',e=>{ if(!dragging||viewLocked)return; az-=(e.clientX-lx)*0.006; pol=clamp(pol-(e.clientY-ly)*0.005,0.32,1.46); lx=e.clientX;ly=e.clientY;lastInteract=performance.now(); });
+  renderer.domElement.addEventListener('wheel',e=>{if(viewLocked)return;e.preventDefault();rad=clamp(rad+(e.deltaY>0?0.6:-0.6),6,16);lastInteract=performance.now();},{passive:false});
+
+  // ---------------- typing engine ----------------
+  const PHRASE="the quick brown fox jumps over 13 lazy dogs ";
+  let armed=false,queue=[],typing=false,typedStr="",keyCount=0,startT=0,typeTimer=null;
+  const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const $=id=>document.getElementById(id);
+  const elTyped=$('typed'),elWpm=$('wpm'),elLat=$('lat'),elKeys=$('keys');
+  const stages=[...document.querySelectorAll('.stage')];
+
+  function press(side,finger,amt){const f=hands[side].fingers[finger]; if(f)f.pressTarget=amt||1;}
+  function flashKey(ch){const k=keyMeshes[ch]; if(k){k.flash=1; k.group.position.y=k.baseY-0.05;}}
+  function pulse(){ stages.forEach((s,i)=>setTimeout(()=>{s.classList.add('live');setTimeout(()=>s.classList.remove('live'),120);},i*36)); }
+  function emit(ch){
+    typedStr+=ch; elTyped.textContent=typedStr; keyCount++; elKeys.textContent=keyCount;
+    const a=assign(ch); press(a.side,a.finger); flashKey(ch); if(!trainMode)pulse();
+    elLat.textContent=(30+Math.round(Math.random()*16))+'ms';
+    const m=(performance.now()-startT)/60000; if(m>0)elWpm.textContent=Math.round((keyCount/5)/m);
+  }
+  function tick(){ if(!queue.length){typing=false;return;} emit(queue.shift());
+    typeTimer=setTimeout(tick,60000/parseInt($('speed').value,10)); }
+  function startTyping(){ if(!armed||typing||trainMode||mouseDemoOn||mode==='mouse')return; typing=true; queue=PHRASE.split(''); if(!keyCount)startT=performance.now(); tick(); }
+
+  function setArmed(v){ armed=v;
+    hands.L.ledMat.color.setHex(v?C.armed:C.standby); hands.L.ledMat.emissive.setHex(v?C.armed:C.standby);
+    hands.R.ledMat.color.setHex(v?C.armed:C.standby); hands.R.ledMat.emissive.setHex(v?C.armed:C.standby);
+    $('statedot').classList.toggle('on',v); $('statetxt').textContent=v?'ARMED · MODEL LOCKED':'STANDBY · NOT ALIGNED';
+    $('btnType').disabled=!v; $('btnClear').disabled=!v; $('btnMouse').disabled=!v; $('hint').classList.toggle('hide',v);
+    if(!v) setMode('keyboard');
+  }
+
+  // ---------------- keyboard <-> mouse gesture ----------------
+  // bring R index+middle together => MOUSE (index=left click, middle=right click, hand=cursor)
+  // spread them back to home      => KEYBOARD
+  let mode='keyboard', mouseEngage=0, mouseEngageTarget=0, mouseDemoOn=false;
+  function setStageLabel(){ const t=stages[2]&&stages[2].querySelector('.t'); if(t)t.textContent=mode==='mouse'?'Gesture → cursor/click':'Keystroke classifier'; }
+  function setMode(m){
+    mode=m; const chip=$('modechip');
+    if(chip){chip.textContent=m==='mouse'?'MOUSE':'KEYBOARD'; chip.classList.toggle('mouse',m==='mouse');}
+    $('kbview').classList.toggle('hide',m==='mouse');
+    $('mouseview').classList.toggle('show',m==='mouse');
+    $('statetxt').textContent=m==='mouse'?'MOUSE · POINTER ACTIVE':(armed?'ARMED · MODEL LOCKED':'STANDBY · NOT ALIGNED');
+    mouseEngageTarget=m==='mouse'?1:0; setStageLabel();
+  }
+  function moveCursor(x,y){ const c=$('mcursor'); c.style.left=x+'px'; c.style.top=y+'px'; }
+  function ripple(x,y,right){ const mv=$('mouseview'); const r=document.createElement('div'); r.className='mripple'+(right?' r':'');
+    r.style.left=x+'px'; r.style.top=y+'px'; mv.appendChild(r); setTimeout(()=>r.remove(),560); if(!trainMode)pulse(); }
+  function leftClick(x,y,tgt){ press('R','index',1); ripple(x,y,false); if(tgt){tgt.classList.add('lit'); setTimeout(()=>tgt.classList.remove('lit'),680);} }
+  function rightClick(x,y){ press('R','middle',1); ripple(x,y,true); const m=$('mctx'); m.style.left=(x-92)+'px'; m.style.top=(y+4)+'px'; m.classList.add('show'); }
+  function step(fn,delay){ return new Promise(res=>setTimeout(()=>{fn();res();},delay)); }
+  async function mouseDemo(){
+    if(!armed||mouseDemoOn||trainMode||aligning) return;
+    clearTimeout(typeTimer); typing=false; queue=[];
+    mouseDemoOn=true; $('btnMouse').disabled=true; $('btnMouse').innerHTML='<span class="ic">➚</span>Mouse active…';
+    setMode('mouse'); moveCursor(150,46);
+    const T1=[139,32], T0=[28,50], T2=[226,68];
+    await step(()=>{},680);                                   // fingers settle together
+    await step(()=>moveCursor(T1[0],T1[1]),560);
+    await step(()=>leftClick(T1[0],T1[1],$('tgt1')),560);     // left click
+    await step(()=>moveCursor(T0[0],T0[1]),560);
+    await step(()=>leftClick(T0[0],T0[1],$('tgt0')),560);     // left click
+    await step(()=>moveCursor(T2[0],T2[1]),560);
+    await step(()=>rightClick(T2[0],T2[1]),780);              // right click -> context menu
+    await step(()=>$('mctx').classList.remove('show'),900);
+    await step(()=>setMode('keyboard'),360);                  // spread back -> keyboard
+    mouseDemoOn=false; $('btnMouse').disabled=false; $('btnMouse').innerHTML='<span class="ic">➚</span>Mouse gesture';
+  }
+  $('btnMouse').addEventListener('click',mouseDemo);
+
+  // calibration (align) animation
+  let aligning=false,alignT=0;
+  $('btnAlign').addEventListener('click',()=>{ if(aligning)return; aligning=true;alignT=0;
+    $('btnAlign').innerHTML='<span class="ic">⊹</span>Aligning…'; $('btnAlign').disabled=true; });
+  $('btnType').addEventListener('click',startTyping);
+  $('btnClear').addEventListener('click',()=>{ typedStr="";elTyped.textContent="";keyCount=0;elKeys.textContent='0';elWpm.textContent='0';elLat.textContent='—'; clearTimeout(typeTimer);typing=false;queue=[]; });
+  $('speed').addEventListener('input',e=>$('spdVal').textContent=e.target.value+' cpm');
+
+  // view toggles
+  $('btnKb').addEventListener('click',e=>{ const b=e.currentTarget; const hidden=kbGroup.visible; kbGroup.visible=!hidden;
+    b.classList.toggle('on',!kbGroup.visible); b.innerHTML='<span class="ic">▦</span>'+(kbGroup.visible?'Hide keyboard':'Show keyboard'); });
+  $('btnSpin').addEventListener('click',e=>{ const b=e.currentTarget; spinFrozen=!spinFrozen;
+    b.classList.toggle('on',spinFrozen); b.innerHTML='<span class="ic">⟳</span>'+(spinFrozen?'Resume spin':'Freeze spin'); });
+  $('btnLock').addEventListener('click',e=>{ const b=e.currentTarget; viewLocked=!viewLocked; if(viewLocked)dragging=false;
+    b.classList.toggle('on',viewLocked); b.innerHTML='<span class="ic">⊘</span>'+(viewLocked?'Unlock screen movement':'Lock screen movement'); });
+
+  // ---------------- blueprint callouts ----------------
+  let bpOn=false;
+  const BP=[
+    {ref:()=>handL.refs.fingerRefs.flexStrip, h:'Flex sensor',   d:'bend resistance → joint angle'},
+    {ref:()=>handL.refs.fingerRefs.knuckle,   h:'Joint IMU node',d:'accel + gyro per knuckle'},
+    {ref:()=>handL.refs.fingerRefs.tip,       h:'Haptic tip',    d:'vibro "click" feedback'},
+    {ref:()=>handL.refs.module,               h:'Control module',d:'MCU · BLE HID · battery'},
+    {ref:()=>handL.refs.led,                  h:'Status LED',    d:'green = armed'},
+    {ref:()=>handL.refs.cuff,                 h:'Wrist cuff',    d:'sEMG band · IMU ref'}
+  ];
+  const bpSvg=$('bpsvg'); const bpLabels=[];
+  BP.forEach((b,i)=>{ const ln=document.createElementNS('http://www.w3.org/2000/svg','line');
+    ln.setAttribute('stroke','#5BB8FF'); ln.setAttribute('stroke-width','1'); ln.setAttribute('stroke-dasharray','3 3'); ln.setAttribute('opacity','0.7'); bpSvg.appendChild(ln);
+    const dv=document.createElement('div'); dv.className='bplabel'; dv.innerHTML='<div class="h">'+b.h+'</div><div class="d">'+b.d+'</div>'; $('bp').appendChild(dv);
+    bpLabels.push({line:ln,div:dv,off:[125, -135+i*50]}); });
+  $('btnBp').addEventListener('click',e=>{ bpOn=!bpOn; e.currentTarget.classList.toggle('on',bpOn); $('bp').classList.toggle('show',bpOn); });
+  const _v=new THREE.Vector3();
+  function updateBlueprint(){
+    if(!bpOn)return; const w=innerWidth,h=innerHeight, hc=handL.group;
+    // hand center for offset anchoring
+    hc.getWorldPosition(_v); _v.project(camera); const cx=(_v.x*0.5+0.5)*w, cy=(-_v.y*0.5+0.5)*h;
+    BP.forEach((b,i)=>{ const m=b.ref(); if(!m){return;} m.getWorldPosition(_v); _v.project(camera);
+      const px=(_v.x*0.5+0.5)*w, py=(-_v.y*0.5+0.5)*h;
+      const L=bpLabels[i]; let lxp=clamp(cx+L.off[0],90,w-90), lyp=clamp(cy+L.off[1],70,h-60);
+      L.div.style.left=lxp+'px'; L.div.style.top=lyp+'px';
+      L.line.setAttribute('x1',lxp); L.line.setAttribute('y1',lyp); L.line.setAttribute('x2',px); L.line.setAttribute('y2',py);
+    });
+  }
+
+  // ---------------- training visualization ----------------
+  const FINGERS=[ ['L','pinky'],['L','ring'],['L','middle'],['L','index'],['L','thumb'],
+                  ['R','pinky'],['R','ring'],['R','middle'],['R','index'],['R','thumb'] ];
+  const fname={pinky:'Pinky',ring:'Ring',middle:'Middle',index:'Index',thumb:'Thumb'};
+  const cellMap={}; // "L_index" -> {canvas,ctx,buf,mapEl,cellEl,keys:Set}
+  (function buildTrainPanel(){
+    const grid=$('fgrid');
+    FINGERS.forEach(([side,fn])=>{
+      const id=side+'_'+fn; const cell=document.createElement('div'); cell.className='fcell';
+      cell.innerHTML='<div class="top"><span class="fdot" style="background:'+HEX(FC[fn])+'"></span>'
+        +'<span class="fname">'+fname[fn]+'</span><span class="fside">'+side+'H</span></div>'
+        +'<canvas width="130" height="24"></canvas><div class="map">—</div>';
+      grid.appendChild(cell);
+      const cv=cell.querySelector('canvas');
+      cellMap[id]={canvas:cv,ctx:cv.getContext('2d'),buf:new Array(48).fill(0.5),mapEl:cell.querySelector('.map'),cellEl:cell,keys:[]};
+    });
+  })();
+  function drawSpark(c){
+    const x=c.ctx,w=c.canvas.width,h=c.canvas.height; x.clearRect(0,0,w,h);
+    x.strokeStyle='#5BB8FF'; x.globalAlpha=0.85; x.lineWidth=1.4; x.beginPath();
+    c.buf.forEach((v,i)=>{ const px=i/(c.buf.length-1)*w, py=h-(v*(h-4)+2); i?x.lineTo(px,py):x.moveTo(px,py); });
+    x.stroke(); x.globalAlpha=1;
+  }
+
+  let trainMode=false, trainScript=[], trainIdx=0, trainTimer=null, samples=0, acc=0, epoch=0;
+  const TRAIN_KEYS="fjdksla;ghrueiwoqptyvncmx,z.b/ ".split('');
+  function startTraining(){
+    if(trainMode)return; trainMode=true;
+    clearTimeout(typeTimer); typing=false; queue=[];
+    $('train').classList.add('show'); $('pipeline').style.display='none'; $('hint').classList.add('hide');
+    for(const id in cellMap){ cellMap[id].keys=[]; cellMap[id].mapEl.innerHTML='—'; }
+    samples=0; acc=0; epoch=1; trainIdx=0;
+    trainScript=TRAIN_KEYS.concat(TRAIN_KEYS); // two epochs
+    $('btnTrain').innerHTML='<span class="ic">◷</span>Training…'; $('btnTrain').disabled=true;
+    $('statetxt').textContent='TRAINING · LEARNING SIGNAL MAP';
+    trainStep();
+  }
+  function trainStep(){
+    if(trainIdx>=trainScript.length){ finishTraining(); return; }
+    const ch=trainScript[trainIdx++]; const a=assign(ch); const id=a.side+'_'+a.finger;
+    press(a.side,a.finger,1);                 // flex the known finger (supervised)
+    samples++; if(trainIdx===TRAIN_KEYS.length+1)epoch=2;
+    const c=cellMap[id];
+    if(c){ if(!c.keys.includes(ch)) c.keys.push(ch);
+      c.mapEl.innerHTML='maps → <b>'+c.keys.map(k=>k===' '?'␣':k).join(' ')+'</b>';
+      Object.values(cellMap).forEach(x=>x.cellEl.classList.remove('active')); c.cellEl.classList.add('active'); }
+    // accuracy curve toward ~0.98
+    const p=samples/trainScript.length; acc=clamp(0.42+0.56*Math.pow(p,0.65),0,0.985);
+    $('accfill').style.width=Math.round(acc*100)+'%'; $('accnum').textContent=Math.round(acc*100)+'%';
+    $('trainmeta').innerHTML='samples '+samples+'<br>epoch '+epoch+' / 2';
+    trainTimer=setTimeout(trainStep, 150);
+  }
+  function finishTraining(){
+    trainMode=false; Object.values(cellMap).forEach(x=>x.cellEl.classList.remove('active'));
+    $('btnTrain').innerHTML='<span class="ic">✓</span>Model trained'; $('btnTrain').disabled=false;
+    $('accfill').style.width='98%'; $('accnum').textContent='98%';
+    $('pipeline').style.display='flex'; $('train').classList.remove('show');
+    setArmed(true); $('btnAlign').innerHTML='<span class="ic">✓</span>Aligned';
+  }
+  $('btnTrain').addEventListener('click',startTraining);
+
+  // ---------------- animate ----------------
+  const clock=new THREE.Clock(); let elapsed=0, sparkTick=0;
+  function animate(){
+    requestAnimationFrame(animate);
+    const dt=Math.min(clock.getDelta(),0.05); elapsed+=dt; const t=elapsed;
+
+    const hover=(aligning||armed||trainMode)?0:(reduced?0:Math.sin(t*1.2)*0.06);
+    if(aligning){ alignT+=dt; const e=1-Math.pow(1-clamp(alignT/1.1,0,1),3);
+      hands.L.group.position.y=0.55*(1-e); hands.R.group.position.y=0.55*(1-e);
+      hands.L.group.rotation.x=-0.16*(1-e); hands.R.group.rotation.x=-0.16*(1-e);
+      if(alignT>=1.1){aligning=false; setArmed(true); $('btnAlign').innerHTML='<span class="ic">✓</span>Aligned';}
+    } else if(!armed && !trainMode){
+      hands.L.group.position.y=0.55+hover; hands.R.group.position.y=0.55-hover;
+      hands.L.group.rotation.x=-0.16; hands.R.group.rotation.x=-0.16;
+    } else { hands.L.group.position.y=0; hands.R.group.position.y=0; hands.L.group.rotation.x=0; hands.R.group.rotation.x=0; }
+
+    // mouse-gesture engage: bring R index+middle together + rest them poised on a virtual mouse
+    mouseEngage += (mouseEngageTarget-mouseEngage)*0.12;
+    const rh=hands.R, ix=rh.fingers.index, mid=rh.fingers.middle;
+    ix.root.rotation.y  = ix.baseSplay  - mouseEngage*0.075;
+    mid.root.rotation.y = mid.baseSplay + mouseEngage*0.055;
+    ix.baseMcp  = -0.1 - mouseEngage*0.12;
+    mid.baseMcp = -0.1 - mouseEngage*0.12;
+
+    // finger press easing + apply rotation
+    for(const sd of ['L','R']) for(const k in hands[sd].fingers){
+      const f=hands[sd].fingers[k]; f.pressTarget*=0.82; f.press+=(f.pressTarget-f.press)*0.35; const a=f.press;
+      f.mcp.rotation.x=f.baseMcp-a*0.62; f.pip.rotation.x=f.basePip-a*0.8; if(f.dip)f.dip.rotation.x=-a*0.5;
+    }
+
+    // sensor pulse + LED breathe
+    const base=armed?0.5:0.85, br=reduced?0:0.2*Math.sin(t*2.4)+0.2;
+    for(const sd of ['L','R']){ for(const s of hands[sd].allSensors)s.material.emissiveIntensity=base+br;
+      hands[sd].ledMat.emissiveIntensity=armed?(1.0+0.5*Math.sin(t*3)):(0.8+0.3*Math.sin(t*2)); }
+
+    // key flash decay
+    for(const ch in keyMeshes){ const k=keyMeshes[ch]; if(k.flash>0){ k.flash*=0.86;
+      k.top.emissive.set(HEX(k.color)); k.top.emissiveIntensity=k.flash*1.4;
+      k.group.position.y+=(k.baseY-k.group.position.y)*0.25;
+      if(k.flash<0.02){k.flash=0;k.top.emissiveIntensity=0;k.group.position.y=k.baseY;} } }
+
+    // training sparklines (~22fps)
+    sparkTick+=dt;
+    if(trainMode || $('train').classList.contains('show')){
+      if(sparkTick>0.045){ sparkTick=0;
+        for(const id in cellMap){ const [sd,fn]=id.split('_'); const f=hands[sd].fingers[fn];
+          const c=cellMap[id]; const sig=clamp(0.5+ f.press*0.45 + (Math.random()-0.5)*0.06,0,1);
+          c.buf.push(sig); c.buf.shift(); drawSpark(c); } }
+    }
+
+    if(!dragging && !spinFrozen && !viewLocked && performance.now()-lastInteract>3000 && !reduced) az+=dt*0.08;
+    applyCam(); updateBlueprint(); renderer.render(scene,camera);
+  }
+  applyCam(); animate();
+  addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+})();
+</script>
+</body>
+</html>

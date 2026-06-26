@@ -118,14 +118,19 @@
     .phase{grid-template-columns:1fr} nav .links{display:none}
   }
   @media print{
+    @page{margin:14mm}
     body{background:#fff;font-size:11pt}
     nav,.printbtn{display:none}
     .wrap{max-width:none;padding:0}
-    section{padding:16px 0;border-color:#ddd;break-inside:avoid}
+    /* Tight continuous flow — no forced page breaks, so the PDF has no blank gaps.
+       Sections flow naturally; only small blocks and headings are protected from
+       splitting awkwardly across a page boundary. */
+    section{padding:16px 0;border-color:#ddd;break-inside:auto}
     .whynow,.ws{-webkit-print-color-adjust:exact;print-color-adjust:exact}
     h2{font-size:17pt}
-    .sec-market,.sec-comp,.sec-plan,.sec-hurdles{break-before:page}
-    .cover{padding-top:0}
+    h2,h3{break-after:avoid}
+    .wn,.ws,.phase,.mcard,.hcol,.pstage,figure,table,img{break-inside:avoid}
+    .cover{padding-top:0;break-after:avoid}
   }
 </style>
 </head>
@@ -158,7 +163,7 @@
   <section id="why" class="sec-why">
     <div class="whynow">
       <div class="snum">00 — WHY NOW</div>
-      <h2>Three curves just crossed</h2>
+      <h2>Four curves just crossed</h2>
       <p style="color:#C7D0DC;font-size:15px;max-width:680px">The idea of typing without a keyboard is old. What is new is that the platform shift, the validating incumbent, and the enabling technology all arrived in the same 18 months — and the most attractive lane is still open.</p>
       <div class="wn-grid">
         <div class="wn"><div class="n">01 · THE PLATFORM MOVED</div><p><b>XR device shipments grew 44.4% in 2025</b>, and smart glasses are projected to overtake VR/MR headsets in volume. These devices ship with no surface to type on — text entry is their single biggest unsolved problem.</p></div>
