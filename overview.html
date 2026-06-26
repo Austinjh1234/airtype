@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AirType — Investor Overview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#FBFAF7; --page:#FFFFFF; --ink:#14181F; --soft:#3A4250; --muted:#69727F;
+    --line:#E6E3DC; --line2:#EFEDE7; --accent:#0E9C90; --accent2:#D9822B; --green:#14A85C;
+    --pinky:#7B6BE6; --ring:#E0578A; --middle:#1FA877; --index:#2E86D9; --thumb:#D99A1F;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{background:var(--paper);color:var(--ink);font-family:"Newsreader",Georgia,serif;font-size:16.5px;line-height:1.62;-webkit-font-smoothing:antialiased}
+  .disp{font-family:"Space Grotesk",system-ui,sans-serif}
+  .wrap{max-width:860px;margin:0 auto;padding:0 26px}
+
+  /* nav */
+  nav{position:sticky;top:0;z-index:20;background:rgba(251,250,247,.9);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+  nav .wrap{display:flex;align-items:center;gap:18px;height:54px}
+  nav .logo{font-family:"Space Grotesk";font-weight:700;font-size:16px;letter-spacing:-.01em}
+  nav .logo b{color:var(--accent)}
+  nav .links{margin-left:auto;display:flex;gap:16px}
+  nav a{font-family:"Space Grotesk";font-size:12.5px;color:var(--muted);text-decoration:none;letter-spacing:.01em}
+  nav a:hover{color:var(--ink)}
+  .printbtn{font-family:"Space Grotesk";font-size:12px;border:1px solid var(--line);background:#fff;color:var(--soft);
+    padding:6px 12px;border-radius:8px;cursor:pointer}
+  .printbtn:hover{border-color:var(--accent);color:var(--accent)}
+
+  /* cover */
+  .cover{padding:54px 0 34px;border-bottom:1px solid var(--line)}
+  .kicker{font-family:"Space Grotesk";font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--accent);font-weight:600}
+  h1.title{font-family:"Space Grotesk";font-weight:600;font-size:50px;line-height:1.02;letter-spacing:-.025em;margin:14px 0 10px}
+  .tag{font-size:21px;color:var(--soft);max-width:640px;line-height:1.4}
+  .meta{margin-top:22px;display:flex;flex-wrap:wrap;gap:8px 26px;font-family:"Space Grotesk";font-size:12px;color:var(--muted)}
+  .meta b{color:var(--soft);font-weight:500}
+  .thesis{margin-top:26px;padding:18px 20px;background:#fff;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:10px;font-size:17.5px}
+  .thesis b{color:var(--accent)}
+
+  section{padding:34px 0;border-bottom:1px solid var(--line2)}
+  .snum{font-family:"Space Grotesk";font-size:12px;font-weight:600;color:var(--accent);letter-spacing:.08em}
+  h2{font-family:"Space Grotesk";font-weight:600;font-size:27px;letter-spacing:-.02em;margin:5px 0 16px;line-height:1.12}
+  h3{font-family:"Space Grotesk";font-weight:600;font-size:15px;letter-spacing:.01em;margin:20px 0 7px;color:var(--ink)}
+  p{margin:0 0 13px}
+  p:last-child{margin-bottom:0}
+  a.inline{color:var(--accent);text-decoration:none;border-bottom:1px solid rgba(14,156,144,.3)}
+
+  /* why now */
+  .whynow{background:#0E1218;color:#E9EEF4;border-radius:14px;padding:30px 30px 26px;border:1px solid #1f2733}
+  .whynow .snum{color:#46d8c8}
+  .whynow h2{color:#fff}
+  .wn-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:8px}
+  .wn{background:rgba(255,255,255,.03);border:1px solid #222b38;border-radius:10px;padding:14px 15px}
+  .wn .n{font-family:"Space Grotesk";font-size:11px;color:#46d8c8;font-weight:600;letter-spacing:.04em}
+  .wn p{font-size:14.5px;line-height:1.5;color:#C7D0DC;margin:6px 0 0}
+  .wn b{color:#fff;font-weight:500}
+
+  /* pillars / how it works */
+  .pipeline{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 6px}
+  .pstage{flex:1;min-width:140px;border:1px solid var(--line);border-radius:9px;padding:11px 12px;background:#fff}
+  .pstage .pn{font-family:"Space Grotesk";font-size:10px;color:var(--accent);font-weight:600}
+  .pstage .ph{font-family:"Space Grotesk";font-size:13px;font-weight:600;margin:3px 0 2px}
+  .pstage .pd{font-size:13px;color:var(--muted);line-height:1.4}
+
+  /* tables */
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13.5px}
+  th,td{text-align:left;padding:9px 11px;border-bottom:1px solid var(--line);vertical-align:top;font-family:"Space Grotesk"}
+  th{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;border-bottom:1.5px solid var(--soft)}
+  td b{font-weight:600}
+  tr.us td{background:#F2FBFA}
+  tr.us td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
+  .yes{color:var(--green);font-weight:600}
+  .no{color:#C0504A;font-weight:600}
+  .mid{color:var(--accent2);font-weight:600}
+
+  /* market cards */
+  .mkt{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:14px 0}
+  .mcard{border:1px solid var(--line);border-radius:11px;padding:15px;background:#fff}
+  .mcard .ml{font-family:"Space Grotesk";font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+  .mcard .mv{font-family:"Space Grotesk";font-size:26px;font-weight:600;margin:6px 0 2px;letter-spacing:-.02em}
+  .mcard .mv .yr{font-size:12px;color:var(--muted);font-weight:500}
+  .mcard .md{font-size:13px;color:var(--soft);line-height:1.42;margin-top:5px}
+
+  /* roadmap */
+  .road{margin:14px 0}
+  .phase{display:grid;grid-template-columns:128px 1fr;gap:14px;padding:13px 0;border-top:1px solid var(--line2)}
+  .phase:first-child{border-top:none}
+  .phase .pl{font-family:"Space Grotesk"}
+  .phase .pl .pp{font-size:13px;font-weight:600;color:var(--accent)}
+  .phase .pl .pt{font-size:11.5px;color:var(--muted)}
+  .phase .pr h3{margin:0 0 4px}
+  .phase .pr p{font-size:14px;color:var(--soft);margin:0}
+
+  /* hurdles 3-col */
+  .hcols{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:6px}
+  .hcol{border:1px solid var(--line);border-radius:11px;padding:15px;background:#fff}
+  .hcol .ht{font-family:"Space Grotesk";font-size:13px;font-weight:600;margin-bottom:8px;padding-bottom:7px;border-bottom:1px solid var(--line2)}
+  .hcol ul{list-style:none;font-size:13.5px;line-height:1.45}
+  .hcol li{padding-left:14px;position:relative;margin-bottom:8px;color:var(--soft)}
+  .hcol li:before{content:"";position:absolute;left:0;top:8px;width:5px;height:5px;border-radius:50%;background:var(--accent)}
+  .hcol li b{color:var(--ink);font-weight:600}
+
+  .callout{background:#fff;border:1px solid var(--line);border-left:3px solid var(--accent2);border-radius:10px;padding:16px 18px;margin:14px 0;font-size:16px}
+  .ws{background:#0E1218;color:#E9EEF4;border-radius:12px;padding:22px 24px;margin-top:16px}
+  .ws h3{color:#46d8c8;margin-top:0}
+  .ws p{color:#C7D0DC;font-size:15px}
+  .ws b{color:#fff}
+
+  footer{padding:28px 0 60px;color:var(--muted);font-family:"Space Grotesk";font-size:11.5px;line-height:1.6}
+  .src{font-size:11px;color:var(--muted);margin-top:8px;font-family:"Space Grotesk"}
+
+  @media (max-width:760px){
+    h1.title{font-size:38px} .wn-grid,.mkt,.hcols{grid-template-columns:1fr}
+    .phase{grid-template-columns:1fr} nav .links{display:none}
+  }
+  @media print{
+    body{background:#fff;font-size:11pt}
+    nav,.printbtn{display:none}
+    .wrap{max-width:none;padding:0}
+    section{padding:16px 0;border-color:#ddd;break-inside:avoid}
+    .whynow,.ws{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    h2{font-size:17pt}
+    .sec-market,.sec-comp,.sec-plan,.sec-hurdles{break-before:page}
+    .cover{padding-top:0}
+  }
+</style>
+</head>
+<body>
+<nav><div class="wrap">
+  <span class="logo">Air<b>Type</b></span>
+  <div class="links">
+    <a href="#why">Why now</a><a href="#how">How it works</a><a href="#comp">Competition</a>
+    <a href="#market">Market</a><a href="#plan">Plan</a><a href="#exciting">Why exciting</a>
+  </div>
+  <button class="printbtn" onclick="window.print()">Print / Save PDF</button>
+</div></nav>
+
+<div class="wrap">
+
+  <div class="cover">
+    <div class="kicker">Investor Overview · Confidential</div>
+    <h1 class="title">AirType</h1>
+    <div class="tag">Type anywhere — in the air, on a thigh, on any surface — using the QWERTY muscle memory you already have. No keyboard. No new alphabet to learn.</div>
+    <div class="meta">
+      <span><b>Category</b> &nbsp;Wearable text & pointer input</span>
+      <span><b>Form factor</b> &nbsp;Sensor gloves → standard Bluetooth HID</span>
+      <span><b>Stage</b> &nbsp;Concept + interactive prototype</span>
+    </div>
+    <div class="thesis">
+      Computing is moving to glasses, headsets, and ambient screens that ship <b>without a keyboard</b>. AirType captures the world's most over-trained motor skill — ten-finger touch typing — and turns it into text and pointer control on any device, with the per-finger fidelity and fingertip haptics that no wristband or learned-alphabet product can match.
+    </div>
+  </div>
+
+  <section id="why" class="sec-why">
+    <div class="whynow">
+      <div class="snum">00 — WHY NOW</div>
+      <h2>Three curves just crossed</h2>
+      <p style="color:#C7D0DC;font-size:15px;max-width:680px">The idea of typing without a keyboard is old. What is new is that the platform shift, the validating incumbent, and the enabling technology all arrived in the same 18 months — and the most attractive lane is still open.</p>
+      <div class="wn-grid">
+        <div class="wn"><div class="n">01 · THE PLATFORM MOVED</div><p><b>XR device shipments grew 44.4% in 2025</b>, and smart glasses are projected to overtake VR/MR headsets in volume. These devices ship with no surface to type on — text entry is their single biggest unsolved problem.</p></div>
+        <div class="wn"><div class="n">02 · THE CATEGORY GOT VALIDATED</div><p>Meta now ships an <b>sEMG neural wristband</b> as the input device for its Ray-Ban Display glasses — proof that "type without a keyboard" is a real product line, from the best-funded player. It also defined the lane it <i>doesn't</i> cover.</p></div>
+        <div class="wn"><div class="n">03 · THE SENSORS GOT CHEAP</div><p>9-axis IMUs and flex sensors now cost pennies, and on-device NPUs make <b>sub-50ms inference</b> possible. The glove can finally be light, cheap, private, and fast enough to feel like typing.</p></div>
+        <div class="wn"><div class="n">04 · THE DECODER EXISTS</div><p>Sequence models plus <b>language-model decoding</b> — the same advance behind today's AI — turn sloppy, surfaceless motion into clean QWERTY. This is the exact piece that stalled every 2010s attempt.</p></div>
+      </div>
+      <p style="color:#9aa6b4;font-size:13.5px;margin-top:14px">The installed base waiting on the other side: hundreds of millions of trained touch-typists, plus <b style="color:#fff">1.3 billion people</b> who need some form of assistive input — all currently forced to choose between relearning, low accuracy, or staying tethered to a board.</p>
+    </div>
+  </section>
+
+  <section id="concept">
+    <div class="snum">01</div><h2>The concept</h2>
+    <p>AirType is a pair of lightweight sensor gloves that turn ordinary ten-finger touch-typing into text without a keyboard — typed in the air, on a thigh, or against any surface. Each glove carries per-finger flex sensors that read joint bend, an IMU at the knuckles and wrist that captures hand tilt and the downward "tap" motion, and a small back-of-hand control module that fuses those signals, runs a probabilistic keystroke classifier paired with a language model to resolve the inherent ambiguity of surfaceless typing, and emits standard Bluetooth HID keystrokes so any phone, computer, or headset receives them with no special driver.</p>
+    <p>The defining design choice is that AirType maps the QWERTY finger movements people already have in muscle memory rather than asking them to learn a new input language, with a green-LED calibration step that arms the system only once both hands lock to a home-row reference and the model is confident. A second gesture extends the same hardware to pointing: bringing the right index and middle fingers together engages <b>mouse mode</b> (index = left click, middle = right click, hand motion = cursor); spreading them back to the home row returns to the keyboard.</p>
+  </section>
+
+  <section id="how" class="sec-how">
+    <div class="snum">02</div><h2>How it works, in detail</h2>
+    <p>The core challenge is that surfaceless typing throws away the two things that make a keyboard work: the <b>surface</b> (a hard stop that marks the exact instant of a keystroke) and the <b>keycaps</b> (ground-truth finger position). The entire architecture exists to reconstruct those two signals from body sensing alone.</p>
+
+    <h3>Sensing layer</h3>
+    <p>A practical glove fuses several sensor types rather than relying on one: <b>per-finger flex sensors</b> that read joint bend directly (the most robust signal for how far a finger curls, and the basis for row selection); a <b>9-axis IMU</b> per hand — and ideally per segment — for hand tilt, reach, and the velocity spike that marks a tap; optional <b>fingertip contact/pressure</b> to crisply catch the keystroke "down" event when fingers tap a thigh or desk; and an optional <b>wrist sEMG</b> band as a complementary muscle-activation signal. In touch-typing, each finger owns a column group, flexion depth plus hand pitch implies the row, and the combination yields a probability distribution over keys.</p>
+
+    <h3>The decoder — the actual moat</h3>
+    <p>Because each finger covers two to four keys and air motion is sloppy, this cannot be deterministic key-by-key detection. The classifier outputs a <b>probability distribution over keys</b> for each detected keystroke event, and a statistical decoder plus a <b>language model</b> resolves the most likely intended word from the noisy stream — exactly the approach that lets "imaginary keyboard" research overcome the loss of tactile feedback. Decoder quality, not the gloves, is the defensible asset.</p>
+
+    <h3>Calibration & the green light</h3>
+    <p>With no physical home row, the system anchors a per-session reference: the user holds a neutral posture, which snaps the zero point for each finger's flexion and the hand IMU baseline (cancelling drift). Only once both hands have a reference and live tracking confidence clears a threshold do the green LEDs light — "armed." Continuous re-baselining during use fights the hand-drift that kills naïve eyes-free typing.</p>
+
+    <h3>Signal pipeline</h3>
+    <div class="pipeline">
+      <div class="pstage"><div class="pn">01</div><div class="ph">Capture</div><div class="pd">Per-finger flex + IMU (+ optional sEMG), 200 Hz–1 kHz</div></div>
+      <div class="pstage"><div class="pn">02</div><div class="ph">Filter & fusion</div><div class="pd">Kalman fuse, gravity-cancel, keystroke-event detector</div></div>
+      <div class="pstage"><div class="pn">03</div><div class="ph">Classifier</div><div class="pd">Feature window → P(key), finger + row</div></div>
+      <div class="pstage"><div class="pn">04</div><div class="ph">Decode</div><div class="pd">Probabilistic decoder + LM, debounce, rollover</div></div>
+      <div class="pstage"><div class="pn">05</div><div class="ph">Output</div><div class="pd">Standard BLE HID → any phone, PC, headset</div></div>
+    </div>
+    <p>To feel like typing, end-to-end latency must stay under roughly 50 ms — which mandates on-device inference rather than a cloud round-trip, and conveniently keeps keystroke data private. Fingertip haptic actuators supply the missing "click," the single biggest lever for closing the speed gap with a physical keyboard.</p>
+  </section>
+
+  <section id="comp" class="sec-comp">
+    <div class="snum">03</div><h2>Competitive positioning</h2>
+    <p>The category is crowded but uniformly compromised — every shipping product made a trade AirType is built to avoid. <b>Tap Systems</b> (Tap Strap, TapXR) is the leading commercial player but requires learning a 31-combination "Tap alphabet" — one to two hours of relearning, a non-starter for existing touch-typists. <b>Gest</b> (folded) and <b>Maestro</b> chased gesture control but never delivered fluent text. <b>Meta's Neural Band</b> — the sEMG wristband from its CTRL-Labs acquisition, now shipping with Ray-Ban Display glasses — is the best-funded and most advanced approach, reading muscle signals without per-user calibration, but it is wristband-only (coarser per-finger ground truth), gives no tactile feedback, and is locked to Meta's ecosystem. The academic lineage (<b>ATK, I-Keyboard, KeySense, VISAR</b>) proved mid-air ten-finger typing works but plateaued at 18–30 WPM and never productized.</p>
+    <table>
+      <thead><tr><th>Approach</th><th>Input model</th><th>Relearning</th><th>Per-finger fidelity</th><th>Haptic feedback</th><th>Device-open</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr class="us"><td><b>AirType</b></td><td>Gloves, true QWERTY</td><td class="yes">None</td><td class="yes">High</td><td class="yes">Yes (fingertip)</td><td class="yes">Any (BLE HID)</td><td>Concept + prototype</td></tr>
+        <tr><td>Tap Strap / TapXR</td><td>Tap alphabet (31 combos)</td><td class="no">1–2 hrs</td><td class="mid">Medium</td><td class="no">No</td><td class="yes">Open</td><td>Shipping</td></tr>
+        <tr><td>Meta Neural Band</td><td>Wrist sEMG</td><td class="mid">Some</td><td class="no">Low–med</td><td class="no">No</td><td class="no">Meta only</td><td>Shipping (w/ glasses)</td></tr>
+        <tr><td>Gest / Maestro</td><td>Gesture control</td><td class="mid">Varies</td><td class="mid">Medium</td><td class="no">No</td><td class="mid">Limited</td><td>Defunct / niche</td></tr>
+        <tr><td>ATK / I-Keyboard / VISAR</td><td>Camera / mid-air QWERTY</td><td class="yes">None</td><td class="mid">Medium</td><td class="no">No</td><td class="no">Research</td><td>Academic</td></tr>
+      </tbody>
+    </table>
+    <p>AirType's differentiation is the combination none of them offer at once: <b>no relearning, richer per-finger sensing for accurate disambiguation, built-in fingertip haptics, and open HID output to any device.</b></p>
+  </section>
+
+  <section id="market" class="sec-market">
+    <div class="snum">04</div><h2>Market size & opportunity</h2>
+    <p>The opportunity sits at the convergence of three large, growing markets — with XR as the sharpest near-term wedge and accessibility as the highest-conviction beachhead.</p>
+    <div class="mkt">
+      <div class="mcard"><div class="ml">Wearable technology</div><div class="mv">$93B <span class="yr">→ $230B (2033)</span></div><div class="md">~12% CAGR. The input layer is one of its least-solved segments.</div></div>
+      <div class="mcard"><div class="ml">AR / VR (XR)</div><div class="mv">$20B <span class="yr">→ $106B (2031)</span></div><div class="md">~32% CAGR; devices grew 44% in 2025. Glasses ship with no keyboard.</div></div>
+      <div class="mcard"><div class="ml">Assistive technology</div><div class="mv">$25–37B <span class="yr">→ ~$97B (2035)</span></div><div class="md">~10% CAGR. 1.3B people need AT; adaptive input cuts effort up to 60%.</div></div>
+    </div>
+    <p>Beyond these, the everyday <b>mobile and on-the-go typing</b> market — anyone who finds a phone keyboard slow and a laptop inconvenient — is the broad consumer expansion path. Capturing even a thin slice of the text-input layer across these segments is a multi-hundred-million-dollar business. We frame the wedge as: <b>SAM</b> = text/pointer input for XR users and assistive-input users in North America and the EU; <b>SOM</b> = design partners and accessibility pilots reachable in the first 24 months.</p>
+    <div class="src">Sources: Grand View Research, Mordor Intelligence, IDC, Precedence Research, Technavio, Market Research Future (2025–26 estimates; analyst ranges vary).</div>
+  </section>
+
+  <section id="required">
+    <div class="snum">05</div><h2>What's required to build it</h2>
+    <table>
+      <thead><tr><th style="width:24%">Workstream</th><th>What it takes</th></tr></thead>
+      <tbody>
+        <tr><td><b>Hardware</b></td><td>Per-finger flex sensors, 9-axis IMUs (per hand; optional per-segment), MCU with BLE + small NPU, LiPo battery, fingertip LRA haptics, soft-goods glove with flex-PCB routing, status LED. Sizing/anatomy fit program.</td></tr>
+        <tr><td><b>Software / ML</b></td><td>Sensor fusion, keystroke-event segmentation, per-key probabilistic classifier, language-model decoder, calibration + drift re-baselining, BLE-HID stack, companion app, and the keyboard↔mouse gesture layer.</td></tr>
+        <tr><td><b>Data engine</b></td><td>Labeled multi-user typing corpus across postures (air / surface / thigh) for generalization, plus an eval harness with stable WPM/accuracy metrics that map to releases.</td></tr>
+        <tr><td><b>Team</b></td><td>Embedded/firmware, ML (sequence modeling), HCI/human factors, industrial + soft-goods design, regulatory. Lean to start; data and decoder are the hires that matter.</td></tr>
+        <tr><td><b>Capital</b></td><td>Seed to reach a single-hand surface-tap MVP and a working data engine; Series A to two-hand air mode and external pilots. (Detailed model available on request.)</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="plan" class="sec-plan">
+    <div class="snum">06</div><h2>Plan: concept → MVP</h2>
+    <div class="road">
+      <div class="phase"><div class="pl"><div class="pp">Phase 0</div><div class="pt">0–3 months</div></div>
+        <div class="pr"><h3>Breadboard & first corpus</h3><p>One instrumented hand (4 flex + 1 IMU + MCU). Collect the first labeled typing corpus. Prove home-row + surface-tap classification offline against the eval harness.</p></div></div>
+      <div class="phase"><div class="pl"><div class="pp">Phase 1</div><div class="pt">3–9 months</div></div>
+        <div class="pr"><h3>Single-hand MVP</h3><p>Wearable single-hand glove, on-device BLE-HID, surface-tap QWERTY at usable WPM with the LM decoder and fingertip haptics. Internal eval clears target accuracy/latency. This is the demoable, fundable milestone.</p></div></div>
+      <div class="phase"><div class="pl"><div class="pp">Phase 2</div><div class="pt">9–18 months</div></div>
+        <div class="pr"><h3>Two-hand + air mode</h3><p>Full two-hand system, mid-air mode with drift re-baselining, keyboard↔mouse gesture. Closed pilots with touch-typists and accessibility users; per-user adaptation loop.</p></div></div>
+      <div class="phase"><div class="pl"><div class="pp">Phase 3</div><div class="pt">18+ months</div></div>
+        <div class="pr"><h3>XR & accessibility GTM</h3><p>Integrate as an HID input for glasses/headsets; launch accessibility & RSI/ergonomic go-to-market; scale the data engine and personalization. Expand toward mainstream mobile on-the-go typing.</p></div></div>
+    </div>
+  </section>
+
+  <section id="hurdles" class="sec-hurdles">
+    <div class="snum">07</div><h2>Key hurdles — the honest view</h2>
+    <div class="hcols">
+      <div class="hcol"><div class="ht">Technical</div><ul>
+        <li><b>Segmentation</b> — detecting a keystroke with no surface "stop"</li>
+        <li><b>Disambiguation</b> — a finger covers 2–4 keys; air motion is noisy</li>
+        <li><b>Drift</b> — IMU baseline wander; needs continuous re-calibration</li>
+        <li><b>Generalization</b> — decoder accuracy across users, sessions, postures</li>
+        <li><b>Latency & power</b> — &lt;50 ms on-device within a wearable budget</li>
+        <li><b>Mouse mode</b> — separating a deliberate click from ordinary motion</li>
+      </ul></div>
+      <div class="hcol"><div class="ht">Regulatory</div><ul>
+        <li><b>Radio cert</b> — FCC Part 15 / CE RED for the BLE module</li>
+        <li><b>Medical scope</b> — avoidable by positioning as general-purpose input, not a therapeutic device (no FDA/MDR if no medical claims)</li>
+        <li><b>Privacy</b> — keystrokes can include passwords; on-device processing and no raw-keystroke exfiltration as design principles (GDPR/CCPA)</li>
+        <li><b>Accessibility standards</b> — Section 508 / EN 301 549 as a procurement <i>enabler</i></li>
+      </ul></div>
+      <div class="hcol"><div class="ht">Human factors</div><ul>
+        <li><b>No tactile feedback</b> — mitigated by fingertip haptics + LM</li>
+        <li><b>"Gorilla arm"</b> fatigue — mitigated by surface/lap modes</li>
+        <li><b>Zero learning curve</b> — calibration must be near-instant to win</li>
+        <li><b>Social acceptability</b> — wearing gloves in public</li>
+        <li><b>Anatomy variation</b> — hand sizes, fit, sensor placement</li>
+        <li><b>Expectation gap</b> — vs the speed of a real keyboard</li>
+      </ul></div>
+    </div>
+  </section>
+
+  <section id="exciting">
+    <div class="snum">08</div><h2>Why this is needed — and exciting</h2>
+    <p>This product is needed because computing is migrating to devices the keyboard can't follow. Glasses, headsets, and ambient screens have no surface to type on, and voice — the obvious fallback — fails in public, shared, noisy, and privacy-sensitive settings, which is most of daily life. Every existing alternative forces a bad trade: relearn an alphabet, accept low accuracy and no feedback, or stay tethered to a physical board. Touch typing is already the most over-trained motor skill hundreds of millions of people possess, so the highest-leverage move is to capture that existing skill at its source rather than ask people to abandon it.</p>
+    <p>Gloves are the form factor that can actually do this, because only per-finger sensing gives the fidelity to honor true QWERTY mapping, and only the glove's fingertips can deliver the haptic feedback that closes the speed gap with a real keyboard — all while presenting to the world as a standard keyboard over Bluetooth.</p>
+    <div class="ws">
+      <h3>Where the white space is</h3>
+      <p>The white space is the triangle no competitor occupies: instant, zero-relearning QWERTY for people who already touch-type, delivered with enough per-finger fidelity and fingertip haptics to approach physical-keyboard speed, and aimed first at the two beachheads where the pain is acute — <b>XR text entry</b>, where glasses have no keyboard and Meta's wristband is both coarse and closed, and <b>accessibility, RSI, and ergonomic users</b> who must type all day but can't comfortably use a board. Tap left the no-relearning lane wide open; Meta left the per-finger-fidelity-plus-haptics-plus-open-device lane open; academia left productization open. AirType's wedge is the intersection of all three — and the defensible moat inside it is <b>decoder quality</b>, the classifier-plus-language-model stack that makes sloppy air motion read as clean QWERTY, not the gloves themselves.</p>
+    </div>
+  </section>
+
+  <footer>
+    AirType — Investor Overview · Confidential. Market figures are 2025–26 analyst estimates and ranges vary by source. Latency, WPM, and accuracy targets referenced in the prototype are illustrative design goals, not measured results.
+  </footer>
+</div>
+</body>
+</html>
