@@ -287,9 +287,11 @@
   const grid=new THREE.GridHelper(44,44,0x1b2942,0x121a2b); grid.position.y=-2.05; scene.add(grid);
 
   // ---------------- glove materials ----------------
-  const GRAPHITE=0x2b3442;
-  const gloveMat=new THREE.MeshStandardMaterial({color:GRAPHITE,roughness:0.72,metalness:0.12});
-  const seamMat =new THREE.MeshStandardMaterial({color:0x1a212c,roughness:0.8,metalness:0.1});
+  const GRAPHITE=0x37414f;
+  // matte technical-fabric shell (high roughness, no metalness → reads as cloth, not plastic)
+  const gloveMat=new THREE.MeshStandardMaterial({color:GRAPHITE,roughness:0.96,metalness:0.0});
+  const cuffMat =new THREE.MeshStandardMaterial({color:0x2c343f,roughness:0.99,metalness:0.0});
+  const seamMat =new THREE.MeshStandardMaterial({color:0x171d27,roughness:0.85,metalness:0.05});
   const pcbMat  =new THREE.MeshStandardMaterial({color:0x0e1620,roughness:0.5,metalness:0.45});
   function accentMat(hex){return new THREE.MeshStandardMaterial({color:hex,roughness:0.55,metalness:0.2});}
   function sensorMat(hex){return new THREE.MeshStandardMaterial({color:hex,emissive:hex,emissiveIntensity:0.7,roughness:0.4});}
@@ -312,6 +314,15 @@
     const b3=bone(lens[2],rad*0.84,rad*0.72,gloveMat);
     b1.add(b2); b2.position.z=-lens[0];
     b2.add(b3); b3.position.z=-lens[1];
+
+    // stitched panel seams running down both sides of each segment → reads as a sewn glove
+    function seam(parent,len,r){
+      [-1,1].forEach(sx=>{
+        const sm=new THREE.Mesh(new THREE.BoxGeometry(0.018,0.022,len*0.92),seamMat);
+        sm.position.set(sx*r*0.9,0,-len*0.5); parent.add(sm);
+      });
+    }
+    seam(b1,lens[0],rad); seam(b2,lens[1],rad*0.9); seam(b3,lens[2],rad*0.84);
 
     // dorsal flex-sensor strip (the bend sensor) on top of b1 & b2
     function strip(parent,len,r){
@@ -343,14 +354,22 @@
     wrist.scale.set(0.62,0.3,0.5); wrist.position.set(0,0,0.92); group.add(wrist);
     const thenar=new THREE.Mesh(new THREE.SphereGeometry(1,18,14),gloveMat);
     thenar.scale.set(0.4,0.26,0.55); thenar.position.set(side==='L'?0.55:-0.55,0,0.2); group.add(thenar);
-    // dorsal accent piping
+    // dorsal accent piping + back-of-hand panel seams
     const pipe=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.04,1.7),accentMat(accHex));
     pipe.position.set(0,0.27,0.05); group.add(pipe);
+    [-0.32,0.32].forEach(sx=>{ const s=new THREE.Mesh(new THREE.BoxGeometry(0.016,0.02,0.95),seamMat);
+      s.position.set(sx,0.255,-0.45); group.add(s); });
 
-    // wrist cuff
-    const cuff=new THREE.Mesh(new THREE.TorusGeometry(0.66,0.09,12,28),accentMat(accHex));
-    cuff.position.set(0,0,1.18); cuff.scale.set(1,0.85,1); group.add(cuff);
-    refs.cuff=cuff;
+    // ribbed knit wrist cuff — a real fabric sleeve, so it reads as a worn glove
+    const cuffGrp=new THREE.Group(); cuffGrp.position.set(0,0,1.18); cuffGrp.scale.set(1,0.62,1); group.add(cuffGrp);
+    const sleeve=new THREE.Mesh(new THREE.CylinderGeometry(0.62,0.72,0.6,30,1,true),cuffMat);
+    sleeve.rotation.x=Math.PI/2; cuffGrp.add(sleeve);
+    for(let i=0;i<26;i++){ const a=i/26*Math.PI*2;            // knit ribbing
+      const rib=new THREE.Mesh(new THREE.BoxGeometry(0.016,0.05,0.56),seamMat);
+      rib.position.set(Math.cos(a)*0.67,Math.sin(a)*0.67,0); rib.rotation.z=a; cuffGrp.add(rib); }
+    const trimA=new THREE.Mesh(new THREE.TorusGeometry(0.63,0.04,10,30),accentMat(accHex)); trimA.position.z=-0.28; cuffGrp.add(trimA);
+    const trimB=new THREE.Mesh(new THREE.TorusGeometry(0.73,0.05,10,30),accentMat(accHex)); trimB.position.z=0.28; cuffGrp.add(trimB);
+    refs.cuff=trimB;
 
     // control module (PCB) on back of hand
     const mod=new THREE.Group(); mod.position.set(0,0.26,0.62); group.add(mod);
