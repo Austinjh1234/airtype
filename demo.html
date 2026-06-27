@@ -188,7 +188,7 @@
     <button class="act" id="btnKb"><span class="ic">▦</span>Hide keyboard</button>
     <button class="act" id="btnSpin"><span class="ic">⟳</span>Freeze spin</button>
     <button class="act" id="btnLock"><span class="ic">⊘</span>Lock screen movement</button>
-    <button class="act" id="btnBp"><span class="ic">◎</span>Glove components</button>
+    <button class="act" id="btnBp"><span class="ic">◎</span>Expand (see inside)</button>
 
     <div class="grp">Calibrate model</div>
     <button class="act train" id="btnTrain"><span class="ic">◷</span>Train glove</button>
@@ -288,14 +288,19 @@
   const grid=new THREE.GridHelper(44,44,0x1b2942,0x121a2b); grid.position.y=-2.05; scene.add(grid);
 
   // ---------------- glove materials ----------------
-  const GRAPHITE=0x37414f;
-  // matte technical-fabric shell (high roughness, no metalness → reads as cloth, not plastic)
-  const gloveMat=new THREE.MeshStandardMaterial({color:GRAPHITE,roughness:0.96,metalness:0.0});
-  const cuffMat =new THREE.MeshStandardMaterial({color:0x2c343f,roughness:0.99,metalness:0.0});
-  const seamMat =new THREE.MeshStandardMaterial({color:0x171d27,roughness:0.85,metalness:0.05});
+  const GRAPHITE=0x3b4453;
+  // matte technical-fabric shell (soft, no metalness → reads as a finished cloth product)
+  const gloveMat=new THREE.MeshStandardMaterial({color:GRAPHITE,roughness:0.92,metalness:0.0});
+  const cuffMat =new THREE.MeshStandardMaterial({color:0x2f3744,roughness:0.97,metalness:0.0});
+  const seamMat =new THREE.MeshStandardMaterial({color:0x232b38,roughness:0.85,metalness:0.04});
   const pcbMat  =new THREE.MeshStandardMaterial({color:0x0e1620,roughness:0.5,metalness:0.45});
+  const coverMat=new THREE.MeshStandardMaterial({color:0x333d4b,roughness:0.82,metalness:0.06}); // soft-touch module pod (product)
+  const chipMat =new THREE.MeshStandardMaterial({color:0x0c141e,roughness:0.45,metalness:0.5});  // accelerometer / SMD chips
+  const wireMat =new THREE.MeshStandardMaterial({color:0xC2934A,roughness:0.55,metalness:0.3});   // flex-PCB conductor ribbon
   function accentMat(hex){return new THREE.MeshStandardMaterial({color:hex,roughness:0.55,metalness:0.2});}
   function sensorMat(hex){return new THREE.MeshStandardMaterial({color:hex,emissive:hex,emissiveIntensity:0.7,roughness:0.4});}
+  // shell materials that turn translucent in the Expand x-ray cutaway
+  const ghostMats=[gloveMat,cuffMat,seamMat];
 
   // capsule-ish bone (tapered cylinder + rounded caps) pivoting at joint, extending -z
   function bone(len,r0,r1,mat){
@@ -307,8 +312,8 @@
     g.userData.len=len; g.userData.r=r1; return g;
   }
 
-  // a finger: 3 fleshy bones + dorsal flex-sensor strips + joint sensor nodes
-  function buildFinger(lens,rad,fhex,accHex,refOut){
+  // a finger: 3 fabric bones (shell) + internal flex sensors, accelerometer chips, wiring
+  function buildFinger(lens,rad,fhex,accHex,refOut,internals){
     const sensors=[];
     const b1=bone(lens[0],rad,rad*0.92,gloveMat);
     const b2=bone(lens[1],rad*0.92,rad*0.84,gloveMat);
@@ -325,21 +330,35 @@
     }
     seam(b1,lens[0],rad); seam(b2,lens[1],rad*0.9); seam(b3,lens[2],rad*0.84);
 
+    // --- INTERNALS (hidden in the product view, revealed in the Expand cutaway) ---
     // dorsal flex-sensor strip (the bend sensor) on top of b1 & b2
     function strip(parent,len,r){
       const s=new THREE.Mesh(new THREE.BoxGeometry(r*1.1,0.035,len*0.82),sensorMat(fhex));
-      s.position.set(0,r*0.96,-len*0.5); parent.add(s); s.material.emissiveIntensity=0.45; return s;
+      s.position.set(0,r*0.96,-len*0.5); parent.add(s); s.material.emissiveIntensity=0.45; internals.push(s); return s;
     }
     const fs1=strip(b1,lens[0],rad); strip(b2,lens[1],rad*0.9);
 
-    // joint sensor nodes (IMU/contact pads)
-    function node(parent,r){ const n=new THREE.Mesh(new THREE.SphereGeometry(r*0.42,14,12),sensorMat(accHex)); parent.add(n); sensors.push(n); return n; }
+    // joint sensor node + accelerometer chip at each joint (IMU per knuckle)
+    let firstChip=null;
+    function node(parent,r){
+      const n=new THREE.Mesh(new THREE.SphereGeometry(r*0.42,14,12),sensorMat(accHex)); parent.add(n); sensors.push(n); internals.push(n);
+      const chip=new THREE.Mesh(new THREE.BoxGeometry(r*0.95,0.04,r*0.95),chipMat); chip.position.set(0,r*0.9,-r*0.25); parent.add(chip); internals.push(chip);
+      if(!firstChip) firstChip=chip;
+      return n;
+    }
     const jn=node(b1,rad); node(b2,rad*0.9);
+
+    // dorsal flex-PCB conductor running each joint → back of hand
+    let firstWire=null;
+    function wire(parent,len,r){ const w=new THREE.Mesh(new THREE.BoxGeometry(0.02,0.018,len*0.95),wireMat);
+      w.position.set(r*0.5,r*0.92,-len*0.5); parent.add(w); internals.push(w); if(!firstWire)firstWire=w; }
+    wire(b1,lens[0],rad); wire(b2,lens[1],rad*0.9); wire(b3,lens[2],rad*0.84);
+
     // fingertip pad (haptic actuator)
     const tip=new THREE.Mesh(new THREE.SphereGeometry(rad*0.5,16,14),sensorMat(fhex));
-    tip.position.z=-lens[2]; b3.add(tip); sensors.push(tip); tip.material.emissiveIntensity=0.5;
+    tip.position.z=-lens[2]; b3.add(tip); sensors.push(tip); internals.push(tip); tip.material.emissiveIntensity=0.5;
 
-    if(refOut){ refOut.flexStrip=fs1; refOut.knuckle=jn; refOut.tip=tip; }
+    if(refOut){ refOut.flexStrip=fs1; refOut.knuckle=jn; refOut.tip=tip; refOut.accel=firstChip; refOut.wire=firstWire; }
     return {root:b1,mcp:b1,pip:b2,dip:b3,tip,sensors,baseMcp:0,basePip:0,press:0,pressTarget:0};
   }
 
@@ -347,6 +366,7 @@
     const accHex= side==='L'?C.left:C.right;
     const group=new THREE.Group();
     const refs={};
+    const internals=[];   // sensors/chips/wiring/PCB shown only in the Expand cutaway
 
     // palm pad (ellipsoid) + wrist + thenar mound = fleshy hand base
     const palm=new THREE.Mesh(new THREE.SphereGeometry(1,24,18),gloveMat);
@@ -372,15 +392,18 @@
     const trimB=new THREE.Mesh(new THREE.TorusGeometry(0.73,0.05,10,30),accentMat(accHex)); trimB.position.z=0.28; cuffGrp.add(trimB);
     refs.cuff=trimB;
 
-    // control module (PCB) on back of hand
+    // control module on back of hand: a soft-touch pod (product) over the PCB (revealed in cutaway)
     const mod=new THREE.Group(); mod.position.set(0,0.26,0.62); group.add(mod);
-    const pcb=new THREE.Mesh(new THREE.BoxGeometry(0.95,0.1,0.66),pcbMat); mod.add(pcb);
-    for(let i=0;i<3;i++){ const c=new THREE.Mesh(new THREE.BoxGeometry(0.16,0.07,0.16),seamMat);
-      c.position.set(-0.28+i*0.28,0.08,0.1); mod.add(c); }
+    const pcb=new THREE.Mesh(new THREE.BoxGeometry(0.95,0.1,0.66),pcbMat); mod.add(pcb); internals.push(pcb);
+    for(let i=0;i<3;i++){ const c=new THREE.Mesh(new THREE.BoxGeometry(0.16,0.07,0.16),chipMat);
+      c.position.set(-0.28+i*0.28,0.08,0.1); mod.add(c); internals.push(c); }
     refs.module=mod;
+    // soft-touch cover pod — what the user actually sees on the finished glove
+    const cover=new THREE.Mesh(new THREE.BoxGeometry(1.0,0.17,0.72),coverMat); cover.position.set(0,0.05,0); mod.add(cover);
+    refs.cover=cover;
     const ledMat=new THREE.MeshStandardMaterial({color:C.standby,emissive:C.standby,emissiveIntensity:1.0,roughness:0.3});
-    const led=new THREE.Mesh(new THREE.SphereGeometry(0.1,16,16),ledMat); led.position.set(0,0.12,-0.18); mod.add(led);
-    const ring=new THREE.Mesh(new THREE.TorusGeometry(0.15,0.018,8,22),seamMat); ring.position.copy(led.position); ring.rotation.x=Math.PI/2; mod.add(ring);
+    const led=new THREE.Mesh(new THREE.SphereGeometry(0.08,16,16),ledMat); led.position.set(0,0.155,-0.2); mod.add(led);
+    const ring=new THREE.Mesh(new THREE.TorusGeometry(0.12,0.016,8,22),chipMat); ring.position.copy(led.position); ring.rotation.x=Math.PI/2; mod.add(ring);
     refs.led=led; refs.ledMat=ledMat;
 
     // fingers
@@ -390,7 +413,7 @@
       const lens= nm==='middle'?[0.6,0.42,0.3]: nm==='index'?[0.56,0.4,0.28]: nm==='ring'?[0.54,0.38,0.27]:[0.44,0.3,0.24];
       const rad= nm==='pinky'?0.105:0.125;
       const fref={};
-      const f=buildFinger(lens,rad,FC[nm],accHex,fref);
+      const f=buildFinger(lens,rad,FC[nm],accHex,fref,internals);
       let x=baseX[i]; if(side==='R')x=-x;
       f.root.position.set(x,0.08,-0.96);
       f.root.rotation.y=(side==='L'?1:-1)*(i-1.4)*0.045;
@@ -401,7 +424,7 @@
     });
     // thumb
     const tref={};
-    const thumb=buildFinger([0.4,0.32,0.24],0.13,FC.thumb,accHex,tref);
+    const thumb=buildFinger([0.4,0.32,0.24],0.13,FC.thumb,accHex,tref,internals);
     const tx=side==='L'?0.74:-0.74;
     thumb.root.position.set(tx,0.02,-0.05);
     thumb.root.rotation.set(-0.45,(side==='L'?-0.95:0.95),0);
@@ -409,13 +432,23 @@
     thumb.baseMcp=-0.45; thumb.basePip=-0.18; thumb.pip.rotation.x=thumb.basePip;
     group.add(thumb.root); fingers.thumb=thumb;
 
+    // back-of-hand wiring harness: flex-PCB conductors fanning from each finger base into the module
+    function wireSeg(a,b){ const A=new THREE.Vector3().fromArray(a),B=new THREE.Vector3().fromArray(b);
+      const len=A.distanceTo(B); const m=new THREE.Mesh(new THREE.CylinderGeometry(0.013,0.013,len,7),wireMat);
+      m.position.copy(A).lerp(B,0.5); m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),B.clone().sub(A).normalize());
+      group.add(m); internals.push(m); }
+    baseX.forEach((bx,i)=>{ let x=bx; if(side==='R')x=-x; wireSeg([x,0.30,-0.84],[0,0.30,0.42]); });
+    wireSeg([tx*0.5,0.16,-0.05],[0,0.30,0.42]);   // thumb conductor
+
     let allSensors=[]; for(const k in fingers) allSensors=allSensors.concat(fingers[k].sensors);
-    return {group,fingers,refs,side,ledMat,allSensors};
+    return {group,fingers,refs,side,ledMat,allSensors,internals,cover:refs.cover};
   }
 
   const handL=buildHand('L'); handL.group.position.set(-2.15,0,0); scene.add(handL.group);
   const handR=buildHand('R'); handR.group.position.set( 2.15,0,0); scene.add(handR.group);
   const hands={L:handL,R:handR};
+  // product view by default: internals hidden, soft module pod shown
+  for(const sd of ['L','R']) hands[sd].internals.forEach(m=>m.visible=false);
 
   // ---------------- real QWERTY keyboard ----------------
   const kbGroup=new THREE.Group(); kbGroup.position.set(0,-1.5,-1.0); scene.add(kbGroup);
@@ -566,30 +599,55 @@
   $('btnLock').addEventListener('click',e=>{ const b=e.currentTarget; viewLocked=!viewLocked; if(viewLocked)dragging=false;
     b.classList.toggle('on',viewLocked); b.innerHTML='<span class="ic">⊘</span>'+(viewLocked?'Unlock screen movement':'Lock screen movement'); });
 
-  // ---------------- blueprint callouts ----------------
-  let bpOn=false;
+  // ---------------- Expand: x-ray cutaway of the internals ----------------
+  let expandOn=false, expandT=0;            // 0 = product view, 1 = cutaway
   const BP=[
-    {ref:()=>handL.refs.fingerRefs.flexStrip, h:'Flex sensor',   d:'bend resistance → joint angle'},
-    {ref:()=>handL.refs.fingerRefs.knuckle,   h:'Joint IMU node',d:'accel + gyro per knuckle'},
-    {ref:()=>handL.refs.fingerRefs.tip,       h:'Haptic tip',    d:'vibro "click" feedback'},
-    {ref:()=>handL.refs.module,               h:'Control module',d:'MCU · BLE HID · battery'},
-    {ref:()=>handL.refs.led,                  h:'Status LED',    d:'green = armed'},
-    {ref:()=>handL.refs.cuff,                 h:'Wrist cuff',    d:'sEMG band · IMU ref'}
+    {ref:()=>handL.refs.fingerRefs.flexStrip, h:'Flex sensor',     d:'bend resistance → joint angle'},
+    {ref:()=>handL.refs.fingerRefs.accel,     h:'Accelerometer',   d:'9-axis IMU at each joint'},
+    {ref:()=>handL.refs.fingerRefs.tip,       h:'Haptic tip',      d:'vibro "click" feedback'},
+    {ref:()=>handL.refs.fingerRefs.wire,      h:'Flex-PCB wiring', d:'routes each joint → module'},
+    {ref:()=>handL.refs.module,               h:'Control module',  d:'MCU · BLE HID · battery'},
+    {ref:()=>handL.refs.led,                  h:'Status LED',      d:'green = armed'},
+    {ref:()=>handL.refs.cuff,                 h:'Wrist cuff',      d:'sEMG band · IMU ref'}
   ];
   const bpSvg=$('bpsvg'); const bpLabels=[];
   BP.forEach((b,i)=>{ const ln=document.createElementNS('http://www.w3.org/2000/svg','line');
     ln.setAttribute('stroke','#5BB8FF'); ln.setAttribute('stroke-width','1'); ln.setAttribute('stroke-dasharray','3 3'); ln.setAttribute('opacity','0.7'); bpSvg.appendChild(ln);
     const dv=document.createElement('div'); dv.className='bplabel'; dv.innerHTML='<div class="h">'+b.h+'</div><div class="d">'+b.d+'</div>'; $('bp').appendChild(dv);
-    bpLabels.push({line:ln,div:dv,off:[125, -135+i*50]}); });
-  $('btnBp').addEventListener('click',e=>{ bpOn=!bpOn; e.currentTarget.classList.toggle('on',bpOn); $('bp').classList.toggle('show',bpOn); });
+    bpLabels.push({line:ln,div:dv,off:[160, -150+i*48]}); });
+  const bpCap=document.createElement('div'); bpCap.textContent='CUTAWAY · CONCEPT — sensor layout illustrative';
+  bpCap.style.cssText='position:absolute;left:50%;top:82px;transform:translateX(-50%);font-family:"JetBrains Mono",monospace;font-size:10.5px;letter-spacing:.14em;color:var(--muted);background:rgba(10,14,22,.82);border:1px solid var(--line);border-radius:999px;padding:6px 14px';
+  $('bp').appendChild(bpCap);
+
+  // camera fly between the product orbit and the focused cutaway view
+  const CAM_DEF={az:0,pol:0.92,rad:10.2,t:[0,-0.45,0.3]};
+  const CAM_EXP={az:-0.42,pol:0.72,rad:5.4,t:[-2.15,0.05,-0.22]};
+  let camFrom=null,camGoal=null,camProg=1;
+  function flyTo(g){ camFrom={az,pol,rad,t:[tgt.x,tgt.y,tgt.z]}; camGoal=g; camProg=0; }
+
+  function setExpand(on){
+    expandOn=on; $('btnBp').classList.toggle('on',on); $('bp').classList.toggle('show',on);
+    for(const sd of ['L','R']){ hands[sd].internals.forEach(m=>m.visible=on); if(hands[sd].cover) hands[sd].cover.visible=!on; }
+    handR.group.visible=!on;                                   // focus the left hand
+    ghostMats.forEach(m=>{ m.transparent=true; m.depthWrite=!on; });
+    if(on){ clearTimeout(typeTimer); typing=false; queue=[]; $('hint').classList.add('hide');
+      ['btnAlign','btnType','btnClear','btnMouse','btnTrain'].forEach(id=>$(id).disabled=true);
+      flyTo(CAM_EXP);
+    } else {
+      $('btnAlign').disabled=false; $('btnTrain').disabled=false; $('hint').classList.toggle('hide',armed);
+      $('btnType').disabled=!armed; $('btnClear').disabled=!armed; $('btnMouse').disabled=!armed;
+      flyTo(CAM_DEF);
+    }
+  }
+  $('btnBp').addEventListener('click',()=>setExpand(!expandOn));
+
   const _v=new THREE.Vector3();
   function updateBlueprint(){
-    if(!bpOn)return; const w=innerWidth,h=innerHeight, hc=handL.group;
-    // hand center for offset anchoring
+    if(!expandOn)return; const w=innerWidth,h=innerHeight, hc=handL.group;
     hc.getWorldPosition(_v); _v.project(camera); const cx=(_v.x*0.5+0.5)*w, cy=(-_v.y*0.5+0.5)*h;
     BP.forEach((b,i)=>{ const m=b.ref(); if(!m){return;} m.getWorldPosition(_v); _v.project(camera);
       const px=(_v.x*0.5+0.5)*w, py=(-_v.y*0.5+0.5)*h;
-      const L=bpLabels[i]; let lxp=clamp(cx+L.off[0],90,w-90), lyp=clamp(cy+L.off[1],70,h-60);
+      const L=bpLabels[i]; let lxp=clamp(cx+L.off[0],110,w-110), lyp=clamp(cy+L.off[1],70,h-60);
       L.div.style.left=lxp+'px'; L.div.style.top=lyp+'px';
       L.line.setAttribute('x1',lxp); L.line.setAttribute('y1',lyp); L.line.setAttribute('x2',px); L.line.setAttribute('y2',py);
     });
@@ -662,8 +720,9 @@
     requestAnimationFrame(animate);
     const dt=Math.min(clock.getDelta(),0.05); elapsed+=dt; const t=elapsed;
 
-    const hover=(aligning||armed||trainMode)?0:(reduced?0:Math.sin(t*1.2)*0.06);
-    if(aligning){ alignT+=dt; const e=1-Math.pow(1-clamp(alignT/1.1,0,1),3);
+    const hover=(aligning||armed||trainMode||expandOn)?0:(reduced?0:Math.sin(t*1.2)*0.06);
+    if(expandOn){ hands.L.group.position.y+=(0-hands.L.group.position.y)*0.2; hands.L.group.rotation.x+=(0-hands.L.group.rotation.x)*0.2;
+    } else if(aligning){ alignT+=dt; const e=1-Math.pow(1-clamp(alignT/1.1,0,1),3);
       hands.L.group.position.y=0.55*(1-e); hands.R.group.position.y=0.55*(1-e);
       hands.L.group.rotation.x=-0.16*(1-e); hands.R.group.rotation.x=-0.16*(1-e);
       if(alignT>=1.1){aligning=false; setArmed(true); $('btnAlign').innerHTML='<span class="ic">✓</span>Aligned';}
@@ -686,10 +745,17 @@
       f.mcp.rotation.x=f.baseMcp-a*0.62; f.pip.rotation.x=f.basePip-a*0.8; if(f.dip)f.dip.rotation.x=-a*0.5;
     }
 
-    // sensor pulse + LED breathe
-    const base=armed?0.5:0.85, br=reduced?0:0.2*Math.sin(t*2.4)+0.2;
-    for(const sd of ['L','R']){ for(const s of hands[sd].allSensors)s.material.emissiveIntensity=base+br;
-      hands[sd].ledMat.emissiveIntensity=armed?(1.0+0.5*Math.sin(t*3)):(0.8+0.3*Math.sin(t*2)); }
+    // sensor pulse (only while internals are visible) + LED breathe (always — product status light)
+    if(expandOn){ const base=0.55, br=reduced?0:0.2*Math.sin(t*2.4)+0.2;
+      for(const sd of ['L','R']) for(const s of hands[sd].allSensors)s.material.emissiveIntensity=base+br; }
+    for(const sd of ['L','R']) hands[sd].ledMat.emissiveIntensity=armed?(1.0+0.5*Math.sin(t*3)):(0.8+0.3*Math.sin(t*2));
+
+    // expand transition: ghost the fabric shell + fly the camera
+    expandT += ((expandOn?1:0)-expandT)*Math.min(1,dt*5);
+    const op=1-expandT*0.84; for(const m of ghostMats) m.opacity=op;
+    if(camProg<1){ camProg=Math.min(1,camProg+dt/0.7); const e=1-Math.pow(1-camProg,3);
+      az=camFrom.az+(camGoal.az-camFrom.az)*e; pol=camFrom.pol+(camGoal.pol-camFrom.pol)*e; rad=camFrom.rad+(camGoal.rad-camFrom.rad)*e;
+      tgt.set(camFrom.t[0]+(camGoal.t[0]-camFrom.t[0])*e, camFrom.t[1]+(camGoal.t[1]-camFrom.t[1])*e, camFrom.t[2]+(camGoal.t[2]-camFrom.t[2])*e); }
 
     // key flash decay
     for(const ch in keyMeshes){ const k=keyMeshes[ch]; if(k.flash>0){ k.flash*=0.86;
@@ -706,7 +772,7 @@
           c.buf.push(sig); c.buf.shift(); drawSpark(c); } }
     }
 
-    if(!dragging && !spinFrozen && !viewLocked && performance.now()-lastInteract>3000 && !reduced) az+=dt*0.08;
+    if(!dragging && !spinFrozen && !viewLocked && !expandOn && camProg>=1 && performance.now()-lastInteract>3000 && !reduced) az+=dt*0.08;
     applyCam(); updateBlueprint(); renderer.render(scene,camera);
   }
   applyCam(); animate();
