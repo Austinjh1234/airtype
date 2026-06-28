@@ -412,11 +412,9 @@
     wrist.scale.set(0.62,0.3,0.5); wrist.position.set(0,0,0.92); group.add(wrist);
     const thenar=new THREE.Mesh(new THREE.SphereGeometry(1,18,14),gloveMat);
     thenar.scale.set(0.4,0.26,0.55); thenar.position.set(side==='L'?0.55:-0.55,0,0.2); group.add(thenar);
-    // dorsal accent piping + back-of-hand panel seams
-    const pipe=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.04,1.7),trimMat);
-    pipe.position.set(0,0.27,0.05); group.add(pipe);
-    [-0.32,0.32].forEach(sx=>{ const s=new THREE.Mesh(new THREE.BoxGeometry(0.016,0.02,0.95),seamMat);
-      s.position.set(sx,0.255,-0.45); group.add(s); });
+    // soft knuckle pad — a low rounded dome across the back of the hand (organic, not a straight bar)
+    const knuckle=new THREE.Mesh(new THREE.SphereGeometry(1,20,14),gloveMat);
+    knuckle.scale.set(0.5,0.12,0.2); knuckle.position.set(0,0.2,-0.78); group.add(knuckle);
     // gray grip palm + silicone dot field on the underside — the reference glove's signature
     const palmPad=new THREE.Mesh(new THREE.SphereGeometry(1,24,16),palmMat); palmPad.scale.set(0.8,0.17,0.98); palmPad.position.set(0,-0.16,-0.06); group.add(palmPad);
     for(let rr=-2;rr<=2;rr++)for(let cc=-2;cc<=2;cc++){ const dx=cc*0.17, dz=rr*0.22; if(dx*dx*1.4+dz*dz*0.9>0.46)continue;
@@ -443,12 +441,15 @@
     const antenna=new THREE.Mesh(new THREE.BoxGeometry(0.34,0.02,0.05),wireMat); antenna.position.set(-0.3,0.07,-0.14); mod.add(antenna); internals.push(antenna); refs.antenna=antenna;
     refs.module=mod;
     // soft-touch cover pod — what the user actually sees on the finished glove
-    const cover=new THREE.Mesh(new THREE.BoxGeometry(1.0,0.17,0.72),coverMat); cover.position.set(0,0.05,0); mod.add(cover);
+    const cover=new THREE.Mesh(new THREE.SphereGeometry(1,22,16),coverMat); cover.scale.set(0.5,0.12,0.37); cover.position.set(0,0.04,0); mod.add(cover);
     refs.cover=cover;
     const ledMat=new THREE.MeshStandardMaterial({color:C.standby,emissive:C.standby,emissiveIntensity:1.0,roughness:0.3});
-    const led=new THREE.Mesh(new THREE.SphereGeometry(0.08,16,16),ledMat); led.position.set(0,0.155,-0.2); mod.add(led);
-    const ring=new THREE.Mesh(new THREE.TorusGeometry(0.12,0.016,8,22),chipMat); ring.position.copy(led.position); ring.rotation.x=Math.PI/2; mod.add(ring);
-    refs.led=led; refs.ledMat=ledMat;
+    const led=new THREE.Mesh(new THREE.SphereGeometry(0.09,18,16),ledMat); led.position.set(0,0.2,-0.18); mod.add(led);
+    // flush green status light on top of the hand: a glowing disc + the dome, both driven by ledMat
+    const halo=new THREE.Mesh(new THREE.CircleGeometry(0.14,28),ledMat); halo.rotation.x=-Math.PI/2; halo.position.set(0,0.143,-0.18); mod.add(halo);
+    const ring=new THREE.Mesh(new THREE.TorusGeometry(0.15,0.018,10,26),chipMat); ring.position.set(0,0.144,-0.18); ring.rotation.x=Math.PI/2; mod.add(ring);
+    const ledGlow=new THREE.PointLight(C.standby,0,1.4); ledGlow.position.set(0,0.26,-0.18); mod.add(ledGlow);
+    refs.led=led; refs.ledMat=ledMat; refs.ledGlow=ledGlow;
 
     // fingers
     const fingers={}; const names=['index','middle','ring','pinky'];
@@ -462,7 +463,9 @@
       f.root.position.set(x,0.08,-0.96);
       f.root.rotation.y=(side==='L'?1:-1)*(i-1.4)*0.045;
       f.baseSplay=f.root.rotation.y;
-      f.root.rotation.x=-0.1; f.baseMcp=-0.1; f.basePip=-0.16; f.pip.rotation.x=f.basePip;
+      // gentle relaxed resting curl (varied per finger) → reads like a real hand, not a stiff rig
+      const curl=[0.02,0.05,0.04,0.07][i];
+      f.root.rotation.x=-0.12-curl; f.baseMcp=-0.12-curl; f.basePip=-0.2-curl*1.6; f.baseDip=-0.12-curl; f.pip.rotation.x=f.basePip;
       group.add(f.root); fingers[nm]=f;
       if(nm==='index') refs.fingerRefs=fref;
     });
@@ -583,11 +586,23 @@
     typeTimer=setTimeout(tick,60000/parseInt($('speed').value,10)); }
   function startTyping(){ if(!armed||typing||trainMode||mouseDemoOn||mode==='mouse')return; typing=true; queue=PHRASE.split(''); if(!keyCount)startT=performance.now(); tick(); }
 
+  // ---------------- soft "ping" on alignment (WebAudio) ----------------
+  let audioCtx=null;
+  function ensureAudio(){ try{ if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+    if(audioCtx.state==='suspended') audioCtx.resume(); }catch(e){} }
+  function playPing(){ if(!audioCtx) return; const now=audioCtx.currentTime;
+    [880,1320].forEach((f,i)=>{ const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+      o.type='sine'; o.frequency.value=f; o.connect(g); g.connect(audioCtx.destination);
+      const t0=now+i*0.085; g.gain.setValueAtTime(0,t0); g.gain.linearRampToValueAtTime(0.11,t0+0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001,t0+0.5); o.start(t0); o.stop(t0+0.55); }); }
+
   function setArmed(v){ armed=v;
-    hands.L.ledMat.color.setHex(v?C.armed:C.standby); hands.L.ledMat.emissive.setHex(v?C.armed:C.standby);
-    hands.R.ledMat.color.setHex(v?C.armed:C.standby); hands.R.ledMat.emissive.setHex(v?C.armed:C.standby);
+    for(const sd of ['L','R']){ const h=hands[sd];
+      h.ledMat.color.setHex(v?C.armed:C.standby); h.ledMat.emissive.setHex(v?C.armed:C.standby);
+      h.refs.ledGlow.color.setHex(v?C.armed:C.standby); h.refs.ledGlow.intensity=v?1.3:0; }
     $('statedot').classList.toggle('on',v); $('statetxt').textContent=v?'ARMED · MODEL LOCKED':'STANDBY · NOT ALIGNED';
     $('btnType').disabled=!v; $('btnClear').disabled=!v; $('btnMouse').disabled=!v; $('hint').classList.toggle('hide',v);
+    if(v) playPing();
     if(!v) setMode('keyboard');
   }
 
@@ -631,7 +646,7 @@
 
   // calibration (align) animation
   let aligning=false,alignT=0;
-  $('btnAlign').addEventListener('click',()=>{ if(aligning)return; aligning=true;alignT=0;
+  $('btnAlign').addEventListener('click',()=>{ if(aligning)return; ensureAudio(); aligning=true;alignT=0;
     $('btnAlign').innerHTML='<span class="ic">⊹</span>Aligning…'; $('btnAlign').disabled=true; });
   $('btnType').addEventListener('click',startTyping);
   $('btnClear').addEventListener('click',()=>{ typedStr="";elTyped.textContent="";keyCount=0;elKeys.textContent='0';elWpm.textContent='0';elLat.textContent='—'; clearTimeout(typeTimer);typing=false;queue=[]; });
@@ -790,7 +805,7 @@
     // finger press easing + apply rotation
     for(const sd of ['L','R']) for(const k in hands[sd].fingers){
       const f=hands[sd].fingers[k]; f.pressTarget*=0.82; f.press+=(f.pressTarget-f.press)*0.35; const a=f.press;
-      f.mcp.rotation.x=f.baseMcp-a*0.62; f.pip.rotation.x=f.basePip-a*0.8; if(f.dip)f.dip.rotation.x=-a*0.5;
+      f.mcp.rotation.x=f.baseMcp-a*0.62; f.pip.rotation.x=f.basePip-a*0.8; if(f.dip)f.dip.rotation.x=(f.baseDip||0)-a*0.5;
     }
 
     // sensor pulse (only while internals are visible) + LED breathe (always — product status light)
