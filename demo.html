@@ -15,8 +15,13 @@
     --pinky:#9B8CFF; --ring:#FF8FB3; --middle:#5BE0A8; --index:#5BB8FF; --thumb:#F5C45A;
   }
   *{box-sizing:border-box;margin:0;padding:0}
-  html,body{height:100%;width:100%;overflow:hidden;background:var(--bg);color:var(--ink);
-    font-family:"Space Grotesk",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  html,body{height:100%;width:100%;overflow:hidden;color:var(--ink);
+    font-family:"Space Grotesk",system-ui,sans-serif;-webkit-font-smoothing:antialiased;
+    /* seamless studio backdrop: soft light pool fading to deep charcoal + gentle vignette */
+    background:
+      radial-gradient(118% 92% at 50% 32%, #2a3343 0%, #1a2230 34%, #0c111b 72%, #070a11 100%),
+      radial-gradient(140% 120% at 50% 120%, rgba(0,0,0,.55), transparent 60%);
+    background-color:#070a11}
   #app{position:relative;width:100vw;height:100vh}
   canvas#scene{display:block;position:absolute;inset:0}
   .mono{font-family:"JetBrains Mono",ui-monospace,monospace}
@@ -271,33 +276,54 @@
   // ---------------- scene ----------------
   const app=document.getElementById('app');
   const scene=new THREE.Scene();
-  scene.background=new THREE.Color(0x0A0E16);
-  scene.fog=new THREE.Fog(0x0A0E16,12,26);
+  scene.background=null;                              // transparent → the CSS studio backdrop shows through
+  scene.fog=new THREE.Fog(0x0a0e16,20,44);
   const camera=new THREE.PerspectiveCamera(42,innerWidth/innerHeight,0.1,100);
-  const renderer=new THREE.WebGLRenderer({antialias:true});
+  const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
   renderer.setPixelRatio(Math.min(devicePixelRatio,2));
   renderer.setSize(innerWidth,innerHeight);
   renderer.outputEncoding=THREE.sRGBEncoding;
+  renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=0.7;   // filmic rolloff (kept dark + moody)
+  renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   renderer.domElement.id='scene';
   app.insertBefore(renderer.domElement,app.firstChild);
 
-  scene.add(new THREE.HemisphereLight(0x4a6a9a,0x0a0e16,0.55));
-  const kl=new THREE.DirectionalLight(0xffffff,0.95); kl.position.set(4,10,7); scene.add(kl);
-  const rl=new THREE.DirectionalLight(0x5bb8ff,0.5); rl.position.set(-7,3,-5); scene.add(rl);
-  const pl=new THREE.PointLight(0xF5A95A,0.4,34); pl.position.set(6,3,5); scene.add(pl);
-  const grid=new THREE.GridHelper(44,44,0x1b2942,0x121a2b); grid.position.y=-2.05; scene.add(grid);
+  // soft image-based studio lighting (PMREM) — a DARK studio so highlights read as reflections
+  // without flooding ambient (keeps the premium dark mood). No external HDRI asset; fully self-contained.
+  const pmrem=new THREE.PMREMGenerator(renderer);
+  function buildStudioEnv(){ const s=new THREE.Scene(); s.background=new THREE.Color(0x080d15); const g=new THREE.BoxGeometry(1,1,1);
+    const box=(x,y,z,sx,sy,sz,c,i)=>{ const m=new THREE.MeshStandardMaterial({color:0x000000,emissive:new THREE.Color(c),emissiveIntensity:i});
+      const b=new THREE.Mesh(g,m); b.position.set(x,y,z); b.scale.set(sx,sy,sz); s.add(b); };
+    box(0,8,1, 7,0.3,5, 0xeaf1ff,0.32);    // soft key panel overhead (subtle ambient)
+    box(-7,2,5, 0.3,6,7, 0x6f96d6,0.4);    // cool side fill (left)
+    box(7,1.5,4, 0.3,6,6, 0xF5A95A,0.28);  // warm side kick (right)
+    box(0,2,-8, 10,6,0.3, 0x223047,0.2);   // dim back fill
+    return s; }
+  let envScene; try{ envScene=buildStudioEnv(); scene.environment=pmrem.fromScene(envScene,0.04).texture; }catch(e){}
+
+  scene.add(new THREE.HemisphereLight(0x4a6a9a,0x0a0e16,0.16));
+  const kl=new THREE.DirectionalLight(0xffffff,1.05); kl.position.set(4,11,7); kl.castShadow=true; scene.add(kl);
+  kl.shadow.mapSize.set(2048,2048); kl.shadow.camera.near=1; kl.shadow.camera.far=34;
+  kl.shadow.camera.left=-7; kl.shadow.camera.right=7; kl.shadow.camera.top=7; kl.shadow.camera.bottom=-7;
+  kl.shadow.bias=-0.0004; kl.shadow.normalBias=0.02; kl.shadow.radius=6;
+  const rl=new THREE.DirectionalLight(0x9ab8e0,0.4); rl.position.set(-7,3,-5); scene.add(rl);
+  const pl=new THREE.PointLight(0xF5A95A,0.45,34); pl.position.set(6,3,5); scene.add(pl);
+  // soft grounding shadow the gloves sit on (replaces the telemetry grid)
+  const floor=new THREE.Mesh(new THREE.PlaneGeometry(120,120), new THREE.ShadowMaterial({opacity:0.34}));
+  floor.rotation.x=-Math.PI/2; floor.position.y=-2.05; floor.receiveShadow=true; scene.add(floor);
 
   // ---------------- glove materials ----------------
-  const GRAPHITE=0x3b4453;
+  const GRAPHITE=0x343d4c;
   // matte technical-fabric shell (soft, no metalness → reads as a finished cloth product)
-  const gloveMat=new THREE.MeshStandardMaterial({color:GRAPHITE,roughness:0.92,metalness:0.0});
-  const cuffMat =new THREE.MeshStandardMaterial({color:0x2f3744,roughness:0.97,metalness:0.0});
-  const seamMat =new THREE.MeshStandardMaterial({color:0x232b38,roughness:0.85,metalness:0.04});
-  const pcbMat  =new THREE.MeshStandardMaterial({color:0x0e1620,roughness:0.5,metalness:0.45});
-  const coverMat=new THREE.MeshStandardMaterial({color:0x333d4b,roughness:0.82,metalness:0.06}); // soft-touch module pod (product)
-  const chipMat =new THREE.MeshStandardMaterial({color:0x0c141e,roughness:0.45,metalness:0.5});  // accelerometer / SMD chips
-  const wireMat =new THREE.MeshStandardMaterial({color:0xC2934A,roughness:0.55,metalness:0.3});   // flex-PCB conductor ribbon
-  function accentMat(hex){return new THREE.MeshStandardMaterial({color:hex,roughness:0.55,metalness:0.2});}
+  const gloveMat=new THREE.MeshStandardMaterial({color:GRAPHITE,roughness:0.9,metalness:0.0,envMapIntensity:0.35});
+  const cuffMat =new THREE.MeshStandardMaterial({color:0x2f3744,roughness:0.95,metalness:0.0,envMapIntensity:0.4});
+  const seamMat =new THREE.MeshStandardMaterial({color:0x232b38,roughness:0.82,metalness:0.04,envMapIntensity:0.5});
+  const pcbMat  =new THREE.MeshStandardMaterial({color:0x0e1620,roughness:0.5,metalness:0.45,envMapIntensity:0.8});
+  // soft-touch module pod — subtle clearcoat sheen (anodized/ceramic feel) that catches the studio env
+  const coverMat=new THREE.MeshPhysicalMaterial({color:0x333d4b,roughness:0.55,metalness:0.1,clearcoat:0.6,clearcoatRoughness:0.3,envMapIntensity:0.9});
+  const chipMat =new THREE.MeshStandardMaterial({color:0x0c141e,roughness:0.4,metalness:0.55,envMapIntensity:1.0});
+  const wireMat =new THREE.MeshStandardMaterial({color:0xC2934A,roughness:0.5,metalness:0.35,envMapIntensity:0.95});
+  function accentMat(hex){return new THREE.MeshPhysicalMaterial({color:hex,roughness:0.4,metalness:0.3,clearcoat:0.55,clearcoatRoughness:0.3,envMapIntensity:1.0});}
   function sensorMat(hex){return new THREE.MeshStandardMaterial({color:hex,emissive:hex,emissiveIntensity:0.7,roughness:0.4});}
   // shell materials that turn translucent in the Expand x-ray cutaway
   const ghostMats=[gloveMat,cuffMat,seamMat];
@@ -449,6 +475,7 @@
   const hands={L:handL,R:handR};
   // product view by default: internals hidden, soft module pod shown
   for(const sd of ['L','R']) hands[sd].internals.forEach(m=>m.visible=false);
+  for(const sd of ['L','R']) hands[sd].group.traverse(o=>{ if(o.isMesh) o.castShadow=true; });   // gloves cast the soft grounding shadow
 
   // ---------------- real QWERTY keyboard ----------------
   const kbGroup=new THREE.Group(); kbGroup.position.set(0,-1.5,-1.0); scene.add(kbGroup);
@@ -506,6 +533,7 @@
   const deck=new THREE.Mesh(new THREE.BoxGeometry(deckW,0.12,deckD),
     new THREE.MeshStandardMaterial({color:0x0c1320,roughness:0.85,metalness:0.2}));
   deck.position.set(0,-0.12,(ROWS.length-1)*U/2); kbGroup.add(deck);
+  kbGroup.traverse(o=>{ if(o.isMesh) o.receiveShadow=true; });   // hand shadows fall softly on the keyboard
 
   // ---------------- orbit ----------------
   let az=0,pol=0.92,rad=10.2,tgt=new THREE.Vector3(0,-0.45,0.3);
@@ -772,7 +800,7 @@
           c.buf.push(sig); c.buf.shift(); drawSpark(c); } }
     }
 
-    if(!dragging && !spinFrozen && !viewLocked && !expandOn && camProg>=1 && performance.now()-lastInteract>3000 && !reduced) az+=dt*0.08;
+    if(!dragging && !spinFrozen && !viewLocked && !expandOn && camProg>=1 && performance.now()-lastInteract>3000 && !reduced) az+=dt*0.045;
     applyCam(); updateBlueprint(); renderer.render(scene,camera);
   }
   applyCam(); animate();
