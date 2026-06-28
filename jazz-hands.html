@@ -41,6 +41,7 @@
   #typed .ph{color:var(--dim)}
   .caret{display:inline-block;width:11px;height:1.05em;background:var(--armed);vertical-align:-3px;margin-left:2px;animation:bl 1s steps(1) infinite}
   @keyframes bl{50%{opacity:0}}
+  @media (prefers-reduced-motion: reduce){ .caret{animation:none} .key,.lnk,.act,#kbd,#zone,#align{transition:none} }
 
   /* control panel */
   .panel{position:absolute;background:var(--panel);border:1px solid var(--line);border-radius:13px;backdrop-filter:blur(12px);z-index:6}
@@ -122,6 +123,7 @@
   <div class="panel" id="ctl">
     <div class="grp">Vision input</div>
     <button class="act" id="start">Start camera</button>
+    <button class="act ghost" id="recal" disabled>Recalibrate</button>
     <button class="act ghost" id="clear">Clear text</button>
     <div class="row"><span>Tap sensitivity</span><span id="sv" class="mono">0.030</span></div>
     <input type="range" id="sens" min="12" max="60" value="30">
@@ -144,7 +146,7 @@
   <!-- virtual keyboard (built once the camera sees you) -->
   <div id="kbd"></div>
 
-  <div class="note">Concept prototype: keys map to your fingertip position over the on-screen keyboard plane. Accuracy here is <b>illustrative</b>, not a measured result — the shipping decoder adds calibration + a trained model. Works best facing the camera with hands raised, palms toward you.</div>
+  <div class="note">Concept prototype: keys are classified in your hand's own frame (touch-typing finger→column, reach→row) after a home-row calibration, then a dictionary decoder cleans whole words. Accuracy is <b>illustrative</b>, not a measured result — the shipping system uses a trained decoder + depth. Works best facing the camera, palms toward you.<br><br><b style="color:var(--muted)">Private:</b> runs on-device — camera frames never leave your browser; nothing is recorded or uploaded.</div>
 
   <div id="msg"><div class="box">
     <h3 id="mh">Jazz Hands Demo</h3>
@@ -159,68 +161,142 @@ const $=id=>document.getElementById(id);
 const vid=$('vid'), cv=$('cv'), ctx=cv.getContext('2d');
 const FCOL={thumb:'#F5C45A',index:'#5BB8FF',middle:'#5BE0A8',ring:'#FF8FB3',pinky:'#9B8CFF'};
 const TIPS={thumb:4,index:8,middle:12,ring:16,pinky:20};
+const FINGERS=['pinky','ring','middle','index','thumb'];
 const CONN=[[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],
   [9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
 
-// ---- build the virtual keyboard (the camera "creates" this plane) ----
+// touch-typing finger → key columns (row 0 top / 1 home / 2 bottom). Index has an inner column.
+const COLS={
+  Left:{ pinky:['q','a','z'], ring:['w','s','x'], middle:['e','d','c'],
+         index:{main:['r','f','v'], inner:['t','g','b']}, thumb:[' '] },
+  Right:{ pinky:['p',';','/'], ring:['o','l','.'], middle:['i','k',','],
+          index:{main:['u','j','m'], inner:['y','h','n']}, thumb:[' '] }
+};
+const ROW_THR=0.30, COL_THR=0.34;       // reach thresholds in hand-scale units (illustrative; tunable)
+
+// ---- virtual keyboard DOM (display + legend; NOT the literal hit-target anymore) ----
 const KB=[['q','w','e','r','t','y','u','i','o','p'],
           ['a','s','d','f','g','h','j','k','l',';'],
           ['z','x','c','v','b','n','m',',','.','/']];
-const kbd=$('kbd');
-for(const row of KB){
-  const r=document.createElement('div'); r.className='krow';
-  for(const k of row){ const d=document.createElement('div'); d.className='key'; d.dataset.k=k; d.textContent=k.toUpperCase(); r.appendChild(d); }
-  kbd.appendChild(r);
-}
+const kbd=$('kbd'); const keyMap={};
+for(const row of KB){ const r=document.createElement('div'); r.className='krow';
+  for(const k of row){ const d=document.createElement('div'); d.className='key'; d.dataset.k=k; d.textContent=k.toUpperCase(); r.appendChild(d); keyMap[k]=d; }
+  kbd.appendChild(r); }
 { const r=document.createElement('div'); r.className='krow';
-  const sp=document.createElement('div'); sp.className='key space'; sp.dataset.k=' '; sp.textContent='space'; r.appendChild(sp); kbd.appendChild(r); }
+  const sp=document.createElement('div'); sp.className='key space'; sp.dataset.k=' '; sp.textContent='space'; r.appendChild(sp); kbd.appendChild(r); keyMap[' ']=sp; }
+function cacheKeys(){}   // retained no-op (keyboard is now display-only)
+function flashKey(el){ if(el){ el.classList.add('hit'); setTimeout(()=>el.classList.remove('hit'),150); } }
 
-let keyEls=[];
-function cacheKeys(){ keyEls=[...kbd.querySelectorAll('.key')].map(el=>{const r=el.getBoundingClientRect();
-  return {el,k:el.dataset.k,cx:r.left+r.width/2,cy:r.top+r.height/2,w:r.width,h:r.height};}); }
-function keyAt(vx,vy){ let best=null,bd=1e9; for(const k of keyEls){const dx=vx-k.cx,dy=vy-k.cy,d=dx*dx+dy*dy; if(d<bd){bd=d;best=k;}}
-  if(best && Math.sqrt(bd) < Math.max(best.w,best.h)*1.7) return best; return null; }
-function flashKey(el){ el.classList.add('hit'); setTimeout(()=>el.classList.remove('hit'),150); }
+// ---- One-Euro landmark smoothing (cuts jitter → fewer false/missed taps) ----
+const alpha=(dt,c)=>{ const tau=1/(2*Math.PI*c); return 1/(1+tau/dt); };
+function lp(){ return {s:null, filter(v,a){ this.s=this.s==null?v:a*v+(1-a)*this.s; return this.s; } }; }
+function euro(mc=1.5,beta=0.04,dc=1.0){ return {x:lp(),dx:lp(),pv:null,t:null,
+  filter(v,t){ const dt=this.t==null?1/30:Math.max(1e-3,t-this.t); this.t=t;
+    const d=this.pv==null?0:(v-this.pv)/dt; this.pv=v;
+    const ed=this.dx.filter(d,alpha(dt,dc)); const cut=mc+beta*Math.abs(ed);
+    return this.x.filter(v,alpha(dt,cut)); } }; }
+const filters={};
+function smooth(label,lm,ts){ let F=filters[label]; if(!F){ F=filters[label]=lm.map(()=>({fx:euro(),fy:euro()})); }
+  return lm.map((p,i)=>({x:F[i].fx.filter(p.x,ts), y:F[i].fy.filter(p.y,ts), z:p.z})); }
 
-// ---- hand-placement bounding box: X over the keyboard, Z via apparent hand size ----
-const Z_MIN=0.13, Z_MAX=0.40;            // normalized hand span: below = too far, above = too close
-let zone={x:0,y:0,w:0,h:0};
-function positionZone(){
-  const r=kbd.getBoundingClientRect();
-  const padX=Math.min(44,r.width*0.04);
-  const top=Math.max(150, r.top - 70);   // sit over the keyboard, below the typed-output bar
-  zone={x:r.left-padX, y:top, w:r.width+padX*2, h:(r.bottom-12)-top};
-  const z=$('zone'); z.style.left=zone.x+'px'; z.style.top=zone.y+'px'; z.style.width=zone.w+'px'; z.style.height=zone.h+'px';
+// ---- object-fit:cover projection (source-normalized → mirrored viewport px) ----
+function vToView(nx,ny){ const vw=vid.videoWidth||1280, vh=vid.videoHeight||720, iw=innerWidth, ih=innerHeight;
+  const s=Math.max(iw/vw,ih/vh), dw=vw*s, dh=vh*s, ox=(iw-dw)/2, oy=(ih-dh)/2;
+  return [iw-(ox+nx*dw), oy+ny*dh]; }   // x mirrored to match the selfie video
+
+// ---- per-hand coordinate frame (invariant to hand translation, rotation, depth) ----
+const sub=(a,b)=>({x:a.x-b.x,y:a.y-b.y});
+const nrm=a=>{ const l=Math.hypot(a.x,a.y)||1; return {x:a.x/l,y:a.y/l}; };
+const dot=(a,b)=>a.x*b.x+a.y*b.y;
+function frameOf(lm){
+  const W=lm[0],I=lm[5],M=lm[9],R=lm[13],P=lm[17];
+  const ox=(I.x+M.x+R.x+P.x)/4, oy=(I.y+M.y+R.y+P.y)/4;
+  const ay=nrm(sub(M,W)), ax=nrm(sub(I,P));                 // reach axis, across-knuckles axis
+  const scale=Math.hypot(I.x-P.x,I.y-P.y)||0.001;           // knuckle width → normalizes depth
+  const inward=Math.sign(dot(sub(M,I),ax))||1;              // +u toward the middle finger (keyboard centre)
+  return {scale,inward, project(p){ const r=sub(p,{x:ox,y:oy}); return {u:dot(r,ax)/scale, v:dot(r,ay)/scale}; } };
 }
+function classify(label,finger,du,dv,inward){
+  const cfg=COLS[label]&&COLS[label][finger]; if(!cfg) return null;
+  if(finger==='thumb') return ' ';
+  const row = dv>ROW_THR?0 : (dv<-ROW_THR?2:1);             // reach forward = top row, curl back = bottom
+  if(finger==='index'){ const innerReach=(du*inward)>COL_THR; return (innerReach?cfg.inner:cfg.main)[row]; }
+  return cfg[row];
+}
+
+// ---- gross placement box: X over the keyboard, Z via apparent hand size ----
+const Z_MIN=0.13, Z_MAX=0.40;
+let zone={x:0,y:0,w:0,h:0};
+function positionZone(){ const r=kbd.getBoundingClientRect(); const padX=Math.min(44,r.width*0.04);
+  const top=Math.max(150, r.top-70); zone={x:r.left-padX, y:top, w:r.width+padX*2, h:(r.bottom-12)-top};
+  const z=$('zone'); z.style.left=zone.x+'px'; z.style.top=zone.y+'px'; z.style.width=zone.w+'px'; z.style.height=zone.h+'px'; }
 function handMetrics(lm){
   let minx=1,maxx=0,miny=1,maxy=0,sx=0,sy=0;
   for(const p of lm){ if(p.x<minx)minx=p.x; if(p.x>maxx)maxx=p.x; if(p.y<miny)miny=p.y; if(p.y>maxy)maxy=p.y; sx+=p.x; sy+=p.y; }
-  const cx=(1-sx/lm.length)*window.innerWidth, cy=(sy/lm.length)*window.innerHeight;   // mirrored, viewport space
-  const size=Math.max(maxx-minx,maxy-miny);                                            // apparent size ≈ Z depth
+  const [cx,cy]=vToView(sx/lm.length, sy/lm.length);
+  const size=Math.max(maxx-minx,maxy-miny);
   const inX=cx>=zone.x&&cx<=zone.x+zone.w, inY=cy>=zone.y&&cy<=zone.y+zone.h;
-  const depth = size<Z_MIN?-1 : size>Z_MAX?1 : 0;                                       // -1 far, +1 close, 0 ok
+  const depth = size<Z_MIN?-1 : size>Z_MAX?1 : 0;
   return {cx,cy,size,minx,maxx,miny,maxy,inX,inY,depth,ok:(inX&&inY&&depth===0)};
 }
 
-let landmarker=null, running=false, lastT=0, fps=0, keys=0, typed='', t0=0;
-let alignFrames=0, aligned=false;
-const state={};
+// ---- word decoder (curated, profanity-free; only cleans toward common neutral words) ----
+const WORDS=("the be to of and a in that have it for not on with he as you do at this but his by from they we say "+
+"her she or an will my one all would there their what so up out if about who get which go me when make can like time "+
+"no just him know take into year your good some could them see other than then now look only come its over think also "+
+"back after use two how our work first well way even new want because any these give day most us is are was were has had "+
+"said each word type text hand glove key keyboard finger model sensor touch demo air fast quick brown fox jumps lazy dog "+
+"hello world test thing great small large more much many here where why call name number part place case point fact group "+
+"right left home row move hold still press light phrase speed page line help start write read run open close show map data "+
+"build code design plan team idea note next done open every under while three four five again learn level value field state").split(/\s+/);
+const WSET=new Set(WORDS);
+const ADJ={q:'wa',w:'qeas',e:'wrsd',r:'etdf',t:'ryfg',y:'tugh',u:'yihj',i:'uojk',o:'ipkl',p:"ol;",
+  a:'qwsz',s:'awedxz',d:'serfcx',f:'drtgvc',g:'ftyhbv',h:'gyujnb',j:'huikmn',k:'jiolm,',l:"kop.;",';':"lp/.",
+  z:'asx',x:'zsdc',c:'xdfv',v:'cfgb',b:'vghn',n:'bhjm',m:'njk,',',':"mkl.",'.':",l;/",'/':".;"};
+function near(a,b){ return a===b?0 : (ADJ[a]&&ADJ[a].indexOf(b)>=0?0.5:1); }
+function wcost(a,b){ const m=a.length,n=b.length, d=[]; for(let i=0;i<=m;i++){ d[i]=[i]; for(let j=1;j<=n;j++)d[i][j]=i===0?j:0; }
+  for(let i=1;i<=m;i++)for(let j=1;j<=n;j++){ const c=a[i-1]===b[j-1]?0:near(a[i-1],b[j-1]);
+    d[i][j]=Math.min(d[i-1][j]+1, d[i][j-1]+1, d[i-1][j-1]+c);
+    if(i>1&&j>1&&a[i-1]===b[j-2]&&a[i-2]===b[j-1]) d[i][j]=Math.min(d[i][j], d[i-2][j-2]+1); }   // transposition (Damerau)
+  return d[m][n]; }
+function correctWord(w){ w=(w||'').toLowerCase(); if(w.length<2||WSET.has(w)) return w;
+  let best=w, bc=1.2; for(const cand of WORDS){ if(Math.abs(cand.length-w.length)>2) continue;
+    const c=wcost(w,cand); if(c<bc){ bc=c; best=cand; } }
+  return best; }                                  // best match is always a curated neutral word; else keep raw
+
+// ---- state ----
+let landmarker=null, running=false, lastT=0, fps=0, keys=0, t0=0;
+let phase='off';                                  // off | aligning | calibrate | typing
+let alignFrames=0, calibFrames=0, calibAcc=null;
+const homeUV={Left:{},Right:{}}, calibrated={Left:false,Right:false};
+const tapState={};
 const DISP=()=>parseInt($('sens').value,10)/1000;
 const REFRACT=240;
+let typed='', word='';
 
 function showMsg(h,p){ $('mh').textContent=h; $('mp').innerHTML=p; $('msg').classList.add('show'); }
 function hideMsg(){ $('msg').classList.remove('show'); }
 
-function setAlign(ok){
-  if(ok===aligned) return; aligned=ok;
-  $('abbox').classList.toggle('ok',ok); $('abdot').classList.toggle('ok',ok);
-  $('kbd').classList.toggle('live',ok);
-  $('dot').className='dot '+(ok?'on':'scan'); $('state').textContent=ok?'ALIGNED · TYPING':'ALIGNING…';
-  $('abtxt').textContent=ok?'Hands aligned — type away':'Line both hands up in the box';
-  $('absub').textContent=ok?'tap a key in the air; it lights up + appears above':'palms toward the camera, both hands inside the dashed box';
-  if(ok){ $('align').style.opacity='0'; setTimeout(()=>{if(aligned)$('align').style.opacity='0';},10); }
-  else $('align').style.opacity='1';
+function banner(main,sub,ok){ $('abtxt').textContent=main; $('absub').textContent=sub;
+  $('abbox').classList.toggle('ok',!!ok); $('abdot').classList.toggle('ok',!!ok); }
+
+function setPhase(p){
+  phase=p;
+  const typing=(p==='typing');
+  $('kbd').classList.toggle('live',typing);
+  $('zone').classList.toggle('ok', typing||p==='calibrate');
+  $('dot').className='dot '+(typing?'on':'scan');
+  $('align').style.opacity = typing? '0':'1';
+  $('state').textContent = p==='typing'?'TYPING': p==='calibrate'?'CALIBRATE':'ALIGNING…';
 }
+function startCalibrate(){ calibFrames=0; calibAcc={Left:{},Right:{}}; calibrated.Left=calibrated.Right=false;
+  $('recal').disabled=true; setPhase('calibrate'); banner('Rest fingers on home row','hold still on A S D F · J K L ; …'); }
+
+// ---- camera lifecycle / privacy: stop all tracks on exit (no silent capture) ----
+function stopCamera(){ running=false; const s=vid.srcObject; if(s){ s.getTracks().forEach(t=>t.stop()); } vid.srcObject=null;
+  $('dot').className='dot'; $('state').textContent='CAMERA OFF'; }
+addEventListener('pagehide',stopCamera);
+addEventListener('beforeunload',stopCamera);
 
 async function init(){
   $('start').disabled=true; showMsg('Loading model…','Fetching the MediaPipe hand model.');
@@ -232,7 +308,7 @@ async function init(){
     });
   }catch(e){ showMsg('Model failed to load','Check your connection and reload. ('+e.message+')'); $('start').disabled=false; return; }
 
-  showMsg('Requesting camera…','Allow camera access when prompted.');
+  showMsg('Requesting camera…','Allow camera access when prompted. Video is processed on-device and never uploaded.');
   try{
     const stream=await navigator.mediaDevices.getUserMedia({video:{width:1280,height:720,facingMode:'user'},audio:false});
     vid.srcObject=stream; await vid.play();
@@ -243,92 +319,110 @@ async function init(){
   hideMsg(); running=true; t0=performance.now();
   $('abbox').classList.remove('tappable'); $('abbox').style.cursor='default'; $('align').style.pointerEvents='none';
   $('zone').style.display='block';
-  $('dot').className='dot scan'; $('state').textContent='ALIGNING…';
-  $('abtxt').textContent='Line both hands up in the box';
+  setPhase('aligning'); banner('Line both hands up in the box','palms toward the camera, both hands inside the dashed box');
   resize(); requestAnimationFrame(loop);
 }
 
-function resize(){ cv.width=vid.videoWidth||window.innerWidth; cv.height=vid.videoHeight||window.innerHeight; cacheKeys(); positionZone(); }
+function resize(){ cv.width=vid.videoWidth||window.innerWidth; cv.height=vid.videoHeight||window.innerHeight; positionZone(); }
 window.addEventListener('resize',resize);
 $('sens').addEventListener('input',e=>$('sv').textContent=(e.target.value/1000).toFixed(3));
 $('start').addEventListener('click',init);
-// the centre alignment banner is also a start button until the camera is running
 $('abbox').classList.add('tappable');
 $('abbox').addEventListener('click',()=>{ if(!running && !$('start').disabled) init(); });
-$('clear').addEventListener('click',()=>{ typed=''; keys=0; t0=performance.now(); renderTyped(); $('keys').textContent='0'; $('wpm').textContent='0'; });
+$('recal').addEventListener('click',()=>{ if(running) startCalibrate(); });
+$('clear').addEventListener('click',()=>{ typed=''; word=''; keys=0; t0=performance.now(); renderLive(); $('keys').textContent='0'; $('wpm').textContent='0'; });
 
-function renderTyped(){
-  const t=$('typed');
-  if(!typed){ t.innerHTML='<span class="ph">your keystrokes appear here…</span>'; return; }
-  t.textContent=typed.slice(-60);
+function renderLive(){ const t=$('typed'); const full=typed+word;
+  if(!full){ t.innerHTML='<span class="ph">your keystrokes appear here…</span>'; return; } t.textContent=full.slice(-60); }
+function commitWord(){ if(word){ typed+=correctWord(word); word=''; } }
+function emitKey(ch){
+  if(ch===' '){ commitWord(); typed+=' '; }
+  else if('.,;/'.indexOf(ch)>=0){ commitWord(); typed+=ch; }
+  else { word+=ch; }
+  renderLive(); keys++; $('keys').textContent=keys;
+  const mins=(performance.now()-t0)/60000; if(mins>0.02) $('wpm').textContent=Math.round((keys/5)/mins);
+  flashKey(keyMap[ch]);
 }
-function emit(ch){ typed+=ch; renderTyped(); keys++; $('keys').textContent=keys;
-  const mins=(performance.now()-t0)/60000; if(mins>0.02) $('wpm').textContent=Math.round((keys/5)/mins); }
 
-function detectTap(hand,finger,y,now){
-  const id=hand+'_'+finger; let s=state[id];
-  if(!s){ s=state[id]={sy:y,descending:false,startY:0,last:0,pv:y}; return false; }
-  s.sy=s.sy*0.55+y*0.45;
-  const v=s.sy-(s.pv??s.sy); s.pv=s.sy;
-  if(v>0.004){ if(!s.descending){ s.descending=true; s.startY=s.sy; } }
-  else if(s.descending && v<0.001){ const drop=s.sy-s.startY; s.descending=false;
-    if(drop>DISP() && now-s.last>REFRACT){ s.last=now; return true; } }
-  return false;
+// hand-relative tap: descending-then-stop in the (smoothed) reach axis; returns drop magnitude
+function detectTap(label,finger,y,now){
+  const id=label+'_'+finger; let s=tapState[id];
+  if(!s){ s=tapState[id]={sy:y,desc:false,startY:0,last:0,pv:y}; return 0; }
+  s.sy=s.sy*0.5+y*0.5; const v=s.sy-s.pv; s.pv=s.sy;
+  if(v>0.004){ if(!s.desc){ s.desc=true; s.startY=s.sy; } }
+  else if(s.desc && v<0.001){ const drop=s.sy-s.startY; s.desc=false;
+    if(drop>DISP() && now-s.last>REFRACT){ s.last=now; return drop; } }
+  return 0;
 }
 
 function loop(){
   if(!running) return;
-  const now=performance.now();
+  const now=performance.now(), ts=now/1000;
   if(vid.readyState>=2){
     const res=landmarker.detectForVideo(vid,now);
     ctx.clearRect(0,0,cv.width,cv.height);
     const n=res.landmarks?res.landmarks.length:0; $('hands').textContent=n;
 
-    // placement gate: both hands inside the box (X) and at the right depth (Z), held steady
-    const M=[]; let placed=0, reason='';
-    for(let h=0;h<n;h++){ const m=handMetrics(res.landmarks[h]); M.push(m);
-      if(m.ok) placed++;
-      else if(m.depth<0) reason='move hands closer';
-      else if(m.depth>0) reason='move hands back';
-      else if(!reason) reason='center hands in the box'; }
-    if(placed>=2) alignFrames=Math.min(alignFrames+1,22); else alignFrames=Math.max(alignFrames-2,0);
-    setAlign(alignFrames>=14);
-    $('zone').classList.toggle('ok',aligned);
-    if(aligned){ $('zlbl').textContent='aligned — type away'; }
-    else{ const sub = n<2 ? 'show both hands to the camera' : (reason||'hold steady…');
-      $('absub').textContent=sub; $('zlbl').textContent = n<2 ? 'place both hands here' : (reason||'place both hands here'); }
+    // smooth + per-hand metrics
+    const H=[];
+    for(let h=0;h<n;h++){ const label=res.handedness?.[h]?.[0]?.categoryName || (h?'Right':'Left');
+      const lm=smooth(label,res.landmarks[h],ts); H.push({label,lm,m:handMetrics(lm)}); }
 
-    ctx.save(); ctx.translate(cv.width,0); ctx.scale(-1,1);   // mirror to match the selfie video
-    for(let h=0;h<n;h++){
-      const lm=res.landmarks[h]; const m=M[h];
-      const hand=res.handedness?.[h]?.[0]?.categoryName || (h?'Right':'Left');
-      // per-hand bounding box: green when correctly placed, amber otherwise
+    let placed=0,reason='';
+    for(const hd of H){ if(hd.m.ok)placed++; else if(hd.m.depth<0)reason='move hands closer';
+      else if(hd.m.depth>0)reason='move hands back'; else if(!reason)reason='center hands in the box'; }
+
+    if(phase==='aligning'){
+      if(placed>=2) alignFrames=Math.min(alignFrames+1,22); else alignFrames=Math.max(alignFrames-2,0);
+      banner('Line both hands up in the box', n<2?'show both hands to the camera':(reason||'hold steady…'));
+      $('zlbl').textContent = n<2?'place both hands here':(reason||'place both hands here');
+      if(alignFrames>=14) startCalibrate();
+    }
+    else if(phase==='calibrate'){
+      if(placed>=2){ calibFrames++;
+        for(const hd of H){ const fr=frameOf(hd.lm); const acc=calibAcc[hd.label]||(calibAcc[hd.label]={});
+          for(const f of FINGERS){ const fp=fr.project(hd.lm[TIPS[f]]); const a=acc[f]||(acc[f]={u:0,v:0,n:0}); a.u+=fp.u; a.v+=fp.v; a.n++; } }
+        const pct=Math.min(100,Math.round(calibFrames/40*100));
+        banner('Rest fingers on home row','capturing your home row… '+pct+'%'); $('zlbl').textContent='hold home-row pose';
+        if(calibFrames>=40){
+          for(const L of ['Left','Right']){ const acc=calibAcc[L]; if(acc&&acc.index&&acc.index.n>10){
+            homeUV[L]={}; for(const f of FINGERS){ const a=acc[f]; homeUV[L][f]={u:a.u/a.n, v:a.v/a.n}; } calibrated[L]=true; } }
+          if(calibrated.Left||calibrated.Right){ setPhase('typing'); t0=performance.now(); keys=0; $('recal').disabled=false; }
+        }
+      } else { calibFrames=Math.max(0,calibFrames-2);
+        banner('Rest fingers on home row', n<2?'show both hands':'keep both hands in the box'); }
+    }
+    else if(phase==='typing'){
+      for(const hd of H){ if(!calibrated[hd.label]) continue; const fr=frameOf(hd.lm);
+        let bestF=null,bestDrop=0;
+        for(const f of FINGERS){ const drop=detectTap(hd.label,f,hd.lm[TIPS[f]].y,now); if(drop>bestDrop){ bestDrop=drop; bestF=f; } }
+        if(bestF){ const fp=fr.project(hd.lm[TIPS[bestF]]); const home=homeUV[hd.label][bestF];
+          if(home){ const du=fp.u-home.u, dv=fp.v-home.v; const k=classify(hd.label,bestF,du,dv,fr.inward);
+            if(k!=null) emitKey(k); } }
+      }
+    }
+
+    // draw skeleton + fingertips (mirrored to match the selfie video)
+    ctx.save(); ctx.translate(cv.width,0); ctx.scale(-1,1);
+    for(const hd of H){ const lm=hd.lm, m=hd.m;
       ctx.strokeStyle=m.ok?'rgba(61,240,140,.85)':'rgba(245,169,90,.7)'; ctx.lineWidth=2; ctx.setLineDash([7,6]);
       ctx.strokeRect(m.minx*cv.width,m.miny*cv.height,(m.maxx-m.minx)*cv.width,(m.maxy-m.miny)*cv.height); ctx.setLineDash([]);
       ctx.strokeStyle='rgba(150,170,200,.5)'; ctx.lineWidth=2;
       for(const [a,b] of CONN){ ctx.beginPath(); ctx.moveTo(lm[a].x*cv.width,lm[a].y*cv.height); ctx.lineTo(lm[b].x*cv.width,lm[b].y*cv.height); ctx.stroke(); }
       ctx.fillStyle='rgba(200,215,235,.7)';
       for(const p of lm){ ctx.beginPath(); ctx.arc(p.x*cv.width,p.y*cv.height,3,0,7); ctx.fill(); }
-      for(const finger in TIPS){
-        const tip=lm[TIPS[finger]]; const col=FCOL[finger];
-        const tapped=detectTap(hand,finger,tip.y,now);
-        ctx.fillStyle=col; ctx.beginPath(); ctx.arc(tip.x*cv.width,tip.y*cv.height,tapped?12:6,0,7); ctx.fill();
-        if(tapped && aligned){
-          // fingertip position in (mirrored) viewport space → which key is under it
-          const vx=(1-tip.x)*window.innerWidth, vy=tip.y*window.innerHeight;
-          const hit=keyAt(vx,vy);
-          if(hit){ emit(hit.k); flashKey(hit.el);
-            ctx.strokeStyle=col; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(tip.x*cv.width,tip.y*cv.height,20,0,7); ctx.stroke(); }
-        }
-      }
+      for(const f of FINGERS){ const tip=lm[TIPS[f]]; ctx.fillStyle=FCOL[f]; ctx.beginPath(); ctx.arc(tip.x*cv.width,tip.y*cv.height,6,0,7); ctx.fill(); }
       const w=lm[0]; ctx.save(); ctx.translate(w.x*cv.width,w.y*cv.height); ctx.scale(-1,1);
-      ctx.fillStyle=hand==='Left'?'#34D9CE':'#F5A95A'; ctx.font='600 15px "Space Grotesk"'; ctx.fillText(hand,8,4); ctx.restore();
+      ctx.fillStyle=hd.label==='Left'?'#34D9CE':'#F5A95A'; ctx.font='600 15px "Space Grotesk"'; ctx.fillText(hd.label,8,4); ctx.restore();
     }
     ctx.restore();
   }
   if(now-lastT>0) fps=Math.round(1000/(now-lastT)); lastT=now; $('fps').textContent=fps;
   requestAnimationFrame(loop);
 }
+
+// expose pure logic for offline (camera-free) verification
+window.__jazz={correctWord,classify,frameOf,wcost};
 </script>
 </body>
 </html>
