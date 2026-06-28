@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AirType — Investors · The ask</title>
+<meta name="description" content="AirType for investors: the ask, use of funds across five workstreams, roadmap, the honest hurdles, and how to get in touch. Download the full investor memo.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="site.css">
+</head>
+<body>
+
+<nav id="nav"><div class="wrap">
+  <a href="/" class="logo">Air<b>Type</b></a>
+  <div class="navlinks">
+    <a class="nl" href="/#how">How it works</a>
+    <a class="nl" href="/#market">Market</a>
+    <a class="nl" href="use-cases.html">Use cases</a>
+    <a class="nl" href="investors.html">Investors</a>
+    <a class="btn btn-outline" href="jazz-hands.html">Jazz Hands</a>
+    <a class="btn btn-primary" href="demo.html">Glove Demo</a>
+  </div>
+</div></nav>
+
+<header class="subhero">
+  <div class="wrap">
+    <span class="eyebrow"><span class="pip"></span>For investors</span>
+    <h1>Fund the <span class="gradtext">decoder</span>, build the keyboard of the next platform.</h1>
+    <p class="sub">The hardware is cheap and the timing is rare. What compounds is the decoder — the data engine that turns sloppy, surfaceless motion into clean text. That's where the capital goes.</p>
+    <div class="cta" style="justify-content:center">
+      <a class="btn btn-primary" href="overview.html">Download the memo (PDF) &nbsp;→</a>
+      <a class="btn btn-ghost" href="waitlist.html">Get in touch</a>
+    </div>
+  </div>
+</header>
+
+<!-- THE ASK -->
+<section class="band" id="ask">
+  <div class="wrap">
+    <div class="reveal">
+      <div class="kicker">The ask</div>
+      <h2>Raising a pre-seed to reach a single-hand MVP.</h2>
+      <div class="raise reveal">
+        <div class="big gradtext">$[X]M</div>
+        <div class="note">Pre-seed — sized to fund the breadboard, first labelled typing corpus, and a working single-hand MVP that types real words over Bluetooth. <i>(Figure to be finalized.)</i></div>
+      </div>
+    </div>
+    <div class="ask">
+      <div class="a reveal" style="border-color:var(--left)"><div class="av">WORKSTREAM 01</div><h3>Hardware</h3><p>Glove industrial design, per-finger flex + 9-axis IMU integration, control module, battery, BLE.</p></div>
+      <div class="a reveal" style="border-color:var(--index)"><div class="av">WORKSTREAM 02</div><h3>Software / ML</h3><p>The keystroke classifier + language-model decoder; on-device, sub-50 ms inference.</p></div>
+      <div class="a reveal" style="border-color:var(--middle)"><div class="av">WORKSTREAM 03</div><h3>Data engine</h3><p>Capture rig + pipeline for labelled (motion → key) data — the moat that compounds.</p></div>
+      <div class="a reveal" style="border-color:var(--ring)"><div class="av">WORKSTREAM 04</div><h3>Team</h3><p>Embedded + sensing, ML/decoding, and design hires to run the workstreams in parallel.</p></div>
+      <div class="a reveal" style="border-color:var(--thumb)"><div class="av">WORKSTREAM 05</div><h3>Capital / ops</h3><p>Tooling, prototyping runs, IP, and the runway to the next milestone.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ROADMAP -->
+<section class="band alt" id="roadmap">
+  <div class="wrap">
+    <div class="reveal">
+      <div class="kicker">Use of funds → milestones</div>
+      <h2>What the money buys, in four phases.</h2>
+      <p class="lead">Each phase de-risks the decoder with real data before the next dollar of scope.</p>
+    </div>
+    <div class="steps">
+      <div class="step reveal"><div class="sn"></div><div><h3>Breadboard &amp; first corpus · 0–3 months</h3><p>Sensor selection, single-finger rig, and the first labelled typing dataset to prove the signal.</p></div></div>
+      <div class="step reveal"><div class="sn"></div><div><h3>Single-hand MVP · 3–9 months</h3><p>One instrumented glove, home-row decoder, Bluetooth HID out — typing real words on a real device.</p></div></div>
+      <div class="step reveal"><div class="sn"></div><div><h3>Two-hand + air mode · 9–18 months</h3><p>Full QWERTY across both hands, surfaceless typing, calibration + language-model decoding.</p></div></div>
+      <div class="step reveal"><div class="sn"></div><div><h3>XR &amp; accessibility GTM · 18+ months</h3><p>Harden the product, partner on XR text entry, and ship the assistive-input beachhead.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- HURDLES -->
+<section class="band dark" id="hurdles">
+  <div class="wrap">
+    <div class="reveal">
+      <div class="kicker">The honest view</div>
+      <h2>The hurdles we're underwriting.</h2>
+      <p class="lead">A concept this ambitious has real risk. Here's where it lives — and why we think it's tractable now.</p>
+    </div>
+    <div class="hcols">
+      <div class="hcol reveal"><h3>Technical</h3><ul>
+        <li>Surfaceless taps have no hard "keystroke" instant to detect.</li>
+        <li>Each finger covers 2–4 keys — ambiguity the decoder must resolve.</li>
+        <li>Drift &amp; per-user variation demand calibration + re-baselining.</li>
+        <li>Latency budget: sub-50 ms, on-device, on a battery.</li>
+      </ul></div>
+      <div class="hcol reveal"><h3>Regulatory / market</h3><ul>
+        <li>Wireless (BLE) certification and per-region compliance.</li>
+        <li>Assistive-tech claims must stay honest and, where needed, validated.</li>
+        <li>A well-funded incumbent (Meta) is validating — and competing.</li>
+        <li>Hardware supply chain and unit economics at scale.</li>
+      </ul></div>
+      <div class="hcol reveal"><h3>Human factors</h3><ul>
+        <li>All-day comfort, fit across hand sizes, washability.</li>
+        <li>Accuracy that's good enough to trust for real writing.</li>
+        <li>Onboarding: calibration must feel near-instant.</li>
+        <li>Earning the switch from a habit as old as the keyboard.</li>
+      </ul></div>
+    </div>
+  </div>
+</section>
+
+<!-- CONTACT -->
+<section class="band cta-band alt" style="text-align:center;padding:104px 0">
+  <div class="wrap reveal">
+    <div class="kicker" style="text-align:center">Let's talk</div>
+    <h2 style="margin:0 auto">Read the memo, then reach out.</h2>
+    <p class="lead" style="margin:18px auto 0">The full investor overview — market, competition, requirements, plan, and hurdles — is one print-ready document.</p>
+    <div class="cta" style="justify-content:center">
+      <a class="btn btn-primary" href="overview.html">Download the memo (PDF) &nbsp;→</a>
+      <a class="btn btn-ghost" href="waitlist.html">Contact us</a>
+      <a class="btn btn-ghost" href="/#market">See the market</a>
+    </div>
+  </div>
+</section>
+
+<footer><div class="wrap">
+  <span>© 2026 AirType · A Kessler Ventures concept · Figures illustrative, not measured.</span>
+  <span><a href="/">Home</a> &nbsp;·&nbsp; <a href="demo.html">Glove Demo</a> &nbsp;·&nbsp; <a href="jazz-hands.html">Jazz Hands</a> &nbsp;·&nbsp; <a href="use-cases.html">Use cases</a> &nbsp;·&nbsp; <a href="waitlist.html">Waitlist</a> &nbsp;·&nbsp; <a href="overview.html">Memo (PDF)</a></span>
+</div></footer>
+
+<script>
+  const nav=document.getElementById('nav');
+  const onScroll=()=>nav.classList.toggle('scrolled',scrollY>12); onScroll(); addEventListener('scroll',onScroll,{passive:true});
+  const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}}),{threshold:.12,rootMargin:'0px 0px -8% 0px'});
+  document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+</script>
+</body>
+</html>

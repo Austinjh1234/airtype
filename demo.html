@@ -313,20 +313,24 @@
   floor.rotation.x=-Math.PI/2; floor.position.y=-2.05; floor.receiveShadow=true; scene.add(floor);
 
   // ---------------- glove materials ----------------
-  const GRAPHITE=0x343d4c;
-  // matte technical-fabric shell (soft, no metalness → reads as a finished cloth product)
-  const gloveMat=new THREE.MeshStandardMaterial({color:GRAPHITE,roughness:0.9,metalness:0.0,envMapIntensity:0.35});
-  const cuffMat =new THREE.MeshStandardMaterial({color:0x2f3744,roughness:0.95,metalness:0.0,envMapIntensity:0.4});
-  const seamMat =new THREE.MeshStandardMaterial({color:0x232b38,roughness:0.82,metalness:0.04,envMapIntensity:0.5});
+  const GRAPHITE=0x16181d;
+  // matte-black soft-shell with a faint clearcoat sheen — a finished touchscreen glove
+  const gloveMat=new THREE.MeshPhysicalMaterial({color:GRAPHITE,roughness:0.62,metalness:0.0,clearcoat:0.4,clearcoatRoughness:0.5,envMapIntensity:0.5});
+  const cuffMat =new THREE.MeshStandardMaterial({color:0x101216,roughness:0.95,metalness:0.0,envMapIntensity:0.35});
+  const seamMat =new THREE.MeshStandardMaterial({color:0x070809,roughness:0.8,metalness:0.05,envMapIntensity:0.4});
+  const trimMat =new THREE.MeshPhysicalMaterial({color:0x0a0b0e,roughness:0.45,metalness:0.2,clearcoat:0.5,clearcoatRoughness:0.35,envMapIntensity:0.7}); // monochrome dark trim
+  const palmMat =new THREE.MeshStandardMaterial({color:0x33373d,roughness:0.85,metalness:0.0,envMapIntensity:0.4});   // gray grip palm
+  const gripMat =new THREE.MeshStandardMaterial({color:0x4a4f57,roughness:0.7,metalness:0.0,envMapIntensity:0.5});    // silicone grip dots
+  const tipMat  =new THREE.MeshPhysicalMaterial({color:0x202329,roughness:0.32,metalness:0.2,clearcoat:0.7,clearcoatRoughness:0.2,envMapIntensity:0.9}); // conductive touchscreen tip
   const pcbMat  =new THREE.MeshStandardMaterial({color:0x0e1620,roughness:0.5,metalness:0.45,envMapIntensity:0.8});
-  // soft-touch module pod — subtle clearcoat sheen (anodized/ceramic feel) that catches the studio env
-  const coverMat=new THREE.MeshPhysicalMaterial({color:0x333d4b,roughness:0.55,metalness:0.1,clearcoat:0.6,clearcoatRoughness:0.3,envMapIntensity:0.9});
+  // soft-touch module pod — dark with a subtle clearcoat sheen
+  const coverMat=new THREE.MeshPhysicalMaterial({color:0x202327,roughness:0.5,metalness:0.1,clearcoat:0.6,clearcoatRoughness:0.3,envMapIntensity:0.9});
   const chipMat =new THREE.MeshStandardMaterial({color:0x0c141e,roughness:0.4,metalness:0.55,envMapIntensity:1.0});
   const wireMat =new THREE.MeshStandardMaterial({color:0xC2934A,roughness:0.5,metalness:0.35,envMapIntensity:0.95});
   function accentMat(hex){return new THREE.MeshPhysicalMaterial({color:hex,roughness:0.4,metalness:0.3,clearcoat:0.55,clearcoatRoughness:0.3,envMapIntensity:1.0});}
   function sensorMat(hex){return new THREE.MeshStandardMaterial({color:hex,emissive:hex,emissiveIntensity:0.7,roughness:0.4});}
   // shell materials that turn translucent in the Expand x-ray cutaway
-  const ghostMats=[gloveMat,cuffMat,seamMat];
+  const ghostMats=[gloveMat,cuffMat,seamMat,trimMat,palmMat,gripMat,tipMat];
 
   // capsule-ish bone (tapered cylinder + rounded caps) pivoting at joint, extending -z
   function bone(len,r0,r1,mat){
@@ -380,11 +384,18 @@
       w.position.set(r*0.5,r*0.92,-len*0.5); parent.add(w); internals.push(w); if(!firstWire)firstWire=w; }
     wire(b1,lens[0],rad); wire(b2,lens[1],rad*0.9); wire(b3,lens[2],rad*0.84);
 
-    // fingertip pad (haptic actuator)
+    // fingertip pad (haptic actuator) — internal
     const tip=new THREE.Mesh(new THREE.SphereGeometry(rad*0.5,16,14),sensorMat(fhex));
     tip.position.z=-lens[2]; b3.add(tip); sensors.push(tip); internals.push(tip); tip.material.emissiveIntensity=0.5;
 
-    if(refOut){ refOut.flexStrip=fs1; refOut.knuckle=jn; refOut.tip=tip; refOut.accel=firstChip; refOut.wire=firstWire; }
+    // product-visible conductive touchscreen tip pad (underside-front of the fingertip)
+    const tipPad=new THREE.Mesh(new THREE.SphereGeometry(rad*0.62,16,12),tipMat);
+    tipPad.scale.set(1,0.6,0.72); tipPad.position.set(0,-rad*0.42,-lens[2]-rad*0.04); b3.add(tipPad);
+    // a couple of silicone grip dots on the palm-side of the finger
+    [-0.42,0.42].forEach(o=>{ const d=new THREE.Mesh(new THREE.SphereGeometry(0.02,8,6),gripMat);
+      d.scale.set(1,0.5,1); d.position.set(o*rad,-rad*0.95,-lens[1]*0.5); b2.add(d); });
+
+    if(refOut){ refOut.flexStrip=fs1; refOut.knuckle=jn; refOut.tip=tip; refOut.accel=firstChip; refOut.wire=firstWire; refOut.tipPad=tipPad; }
     return {root:b1,mcp:b1,pip:b2,dip:b3,tip,sensors,baseMcp:0,basePip:0,press:0,pressTarget:0};
   }
 
@@ -402,10 +413,14 @@
     const thenar=new THREE.Mesh(new THREE.SphereGeometry(1,18,14),gloveMat);
     thenar.scale.set(0.4,0.26,0.55); thenar.position.set(side==='L'?0.55:-0.55,0,0.2); group.add(thenar);
     // dorsal accent piping + back-of-hand panel seams
-    const pipe=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.04,1.7),accentMat(accHex));
+    const pipe=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.04,1.7),trimMat);
     pipe.position.set(0,0.27,0.05); group.add(pipe);
     [-0.32,0.32].forEach(sx=>{ const s=new THREE.Mesh(new THREE.BoxGeometry(0.016,0.02,0.95),seamMat);
       s.position.set(sx,0.255,-0.45); group.add(s); });
+    // gray grip palm + silicone dot field on the underside — the reference glove's signature
+    const palmPad=new THREE.Mesh(new THREE.SphereGeometry(1,24,16),palmMat); palmPad.scale.set(0.8,0.17,0.98); palmPad.position.set(0,-0.16,-0.06); group.add(palmPad);
+    for(let rr=-2;rr<=2;rr++)for(let cc=-2;cc<=2;cc++){ const dx=cc*0.17, dz=rr*0.22; if(dx*dx*1.4+dz*dz*0.9>0.46)continue;
+      const d=new THREE.Mesh(new THREE.SphereGeometry(0.028,8,6),gripMat); d.scale.set(1,0.5,1); d.position.set(dx,-0.265,-0.06+dz); group.add(d); }
 
     // ribbed knit wrist cuff — a real fabric sleeve, so it reads as a worn glove
     const cuffGrp=new THREE.Group(); cuffGrp.position.set(0,0,1.18); cuffGrp.scale.set(1,0.62,1); group.add(cuffGrp);
@@ -414,7 +429,7 @@
     for(let i=0;i<26;i++){ const a=i/26*Math.PI*2;            // knit ribbing
       const rib=new THREE.Mesh(new THREE.BoxGeometry(0.016,0.05,0.56),seamMat);
       rib.position.set(Math.cos(a)*0.67,Math.sin(a)*0.67,0); rib.rotation.z=a; cuffGrp.add(rib); }
-    const trimA=new THREE.Mesh(new THREE.TorusGeometry(0.63,0.04,10,30),accentMat(accHex)); trimA.position.z=-0.28; cuffGrp.add(trimA);
+    const trimA=new THREE.Mesh(new THREE.TorusGeometry(0.63,0.04,10,30),trimMat); trimA.position.z=-0.28; cuffGrp.add(trimA);
     const trimB=new THREE.Mesh(new THREE.TorusGeometry(0.73,0.05,10,30),accentMat(accHex)); trimB.position.z=0.28; cuffGrp.add(trimB);
     refs.cuff=trimB;
 
@@ -423,6 +438,9 @@
     const pcb=new THREE.Mesh(new THREE.BoxGeometry(0.95,0.1,0.66),pcbMat); mod.add(pcb); internals.push(pcb);
     for(let i=0;i<3;i++){ const c=new THREE.Mesh(new THREE.BoxGeometry(0.16,0.07,0.16),chipMat);
       c.position.set(-0.28+i*0.28,0.08,0.1); mod.add(c); internals.push(c); }
+    // battery cell + BLE antenna (internal — revealed in the cutaway, adds technical nuance)
+    const battery=new THREE.Mesh(new THREE.BoxGeometry(0.42,0.12,0.5),chipMat); battery.position.set(0.27,0.0,0.16); mod.add(battery); internals.push(battery); refs.battery=battery;
+    const antenna=new THREE.Mesh(new THREE.BoxGeometry(0.34,0.02,0.05),wireMat); antenna.position.set(-0.3,0.07,-0.14); mod.add(antenna); internals.push(antenna); refs.antenna=antenna;
     refs.module=mod;
     // soft-touch cover pod — what the user actually sees on the finished glove
     const cover=new THREE.Mesh(new THREE.BoxGeometry(1.0,0.17,0.72),coverMat); cover.position.set(0,0.05,0); mod.add(cover);
@@ -630,19 +648,21 @@
   // ---------------- Expand: x-ray cutaway of the internals ----------------
   let expandOn=false, expandT=0;            // 0 = product view, 1 = cutaway
   const BP=[
-    {ref:()=>handL.refs.fingerRefs.flexStrip, h:'Flex sensor',     d:'bend resistance → joint angle'},
-    {ref:()=>handL.refs.fingerRefs.accel,     h:'Accelerometer',   d:'9-axis IMU at each joint'},
-    {ref:()=>handL.refs.fingerRefs.tip,       h:'Haptic tip',      d:'vibro "click" feedback'},
-    {ref:()=>handL.refs.fingerRefs.wire,      h:'Flex-PCB wiring', d:'routes each joint → module'},
-    {ref:()=>handL.refs.module,               h:'Control module',  d:'MCU · BLE HID · battery'},
-    {ref:()=>handL.refs.led,                  h:'Status LED',      d:'green = armed'},
-    {ref:()=>handL.refs.cuff,                 h:'Wrist cuff',      d:'sEMG band · IMU ref'}
+    {ref:()=>handL.refs.fingerRefs.flexStrip, h:'Flex sensor',      d:'bend resistance → joint angle'},
+    {ref:()=>handL.refs.fingerRefs.accel,     h:'Accelerometer',    d:'9-axis IMU · 200 Hz–1 kHz'},
+    {ref:()=>handL.refs.fingerRefs.tipPad,    h:'Touchscreen tip',  d:'conductive · haptic "click"'},
+    {ref:()=>handL.refs.fingerRefs.wire,      h:'Flex-PCB wiring',  d:'routes each joint → module'},
+    {ref:()=>handL.refs.module,               h:'Control module',   d:'MCU · on-device decoder'},
+    {ref:()=>handL.refs.battery,              h:'Battery',          d:'all-day Li-cell'},
+    {ref:()=>handL.refs.antenna,              h:'BLE 5.x radio',    d:'standard HID, no driver'},
+    {ref:()=>handL.refs.led,                  h:'Status LED',       d:'green = armed'},
+    {ref:()=>handL.refs.cuff,                 h:'Wrist cuff',       d:'sEMG band · IMU reference'}
   ];
   const bpSvg=$('bpsvg'); const bpLabels=[];
   BP.forEach((b,i)=>{ const ln=document.createElementNS('http://www.w3.org/2000/svg','line');
     ln.setAttribute('stroke','#5BB8FF'); ln.setAttribute('stroke-width','1'); ln.setAttribute('stroke-dasharray','3 3'); ln.setAttribute('opacity','0.7'); bpSvg.appendChild(ln);
     const dv=document.createElement('div'); dv.className='bplabel'; dv.innerHTML='<div class="h">'+b.h+'</div><div class="d">'+b.d+'</div>'; $('bp').appendChild(dv);
-    bpLabels.push({line:ln,div:dv,off:[160, -150+i*48]}); });
+    bpLabels.push({line:ln,div:dv,off:[168, -190+i*44]}); });
   const bpCap=document.createElement('div'); bpCap.textContent='CUTAWAY · CONCEPT — sensor layout illustrative';
   bpCap.style.cssText='position:absolute;left:50%;top:82px;transform:translateX(-50%);font-family:"JetBrains Mono",monospace;font-size:10.5px;letter-spacing:.14em;color:var(--muted);background:rgba(10,14,22,.82);border:1px solid var(--line);border-radius:999px;padding:6px 14px';
   $('bp').appendChild(bpCap);

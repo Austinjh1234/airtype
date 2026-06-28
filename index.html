@@ -186,6 +186,21 @@
   .det h3{font-size:16px;font-weight:600;margin-bottom:5px}
   .det p{font-size:13.5px;color:var(--muted-on-dark);line-height:1.5}
 
+  /* market big-number + comparison table */
+  .bignum{font-size:clamp(30px,3.6vw,40px);font-weight:700;letter-spacing:-.025em;line-height:1}
+  .cmp-wrap{margin-top:48px;overflow-x:auto}
+  .cmp{width:100%;border-collapse:collapse;font-size:14.5px;min-width:680px}
+  .cmp th,.cmp td{text-align:left;padding:13px 15px;border-bottom:1px solid var(--line);white-space:nowrap}
+  .cmp thead th{font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:600}
+  .cmp tbody th{font-weight:600;color:var(--ink)}
+  .cmp .yes{color:#16a34a;font-weight:600}.cmp .no{color:#d2604a}.cmp .mid{color:#c98a2e}
+  .cmp tr.me th,.cmp tr.me td{background:rgba(52,217,206,.07)}
+  .cmp tr.me th{color:#0E9C90}
+  .ask{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:18px;margin-top:46px}
+  .ask .a{border-left:2px solid var(--left);padding-left:16px}
+  .ask .a .av{font-family:"JetBrains Mono",monospace;font-size:13px;color:var(--muted);letter-spacing:.04em}
+  .ask .a h3{font-size:16px;margin:4px 0 4px}.ask .a p{font-size:13.5px;color:var(--ink2);line-height:1.5}
+
   /* reveal */
   .reveal{opacity:0;transform:translateY(22px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1)}
   .reveal.in{opacity:1;transform:none}
@@ -199,9 +214,9 @@
   <div class="navlinks">
     <a class="nl" href="#how">How it works</a>
     <a class="nl" href="#inside">Inside</a>
-    <a class="nl" href="#why">Why now</a>
-    <a class="nl" href="#moat">The decoder</a>
-    <a class="nl" href="overview.html">Overview</a>
+    <a class="nl" href="#market">Market</a>
+    <a class="nl" href="use-cases.html">Use cases</a>
+    <a class="nl" href="investors.html">Investors</a>
     <a class="btn btn-outline" href="jazz-hands.html">Jazz Hands</a>
     <a class="btn btn-primary" href="demo.html">Glove Demo</a>
   </div>
@@ -506,23 +521,84 @@
   </div>
 </section>
 
+<!-- MARKET -->
+<section class="band" id="market">
+  <div class="wrap">
+    <div class="reveal">
+      <div class="kicker">Market</div>
+      <h2>A category forming across three markets.</h2>
+      <p class="lead">Text input is the connective tissue between the hand and every device. AirType sits where three fast-growing markets overlap — and the beachhead is the place the need is sharpest.</p>
+    </div>
+    <div class="grid g3">
+      <div class="card reveal"><div class="num">WEARABLES</div><div class="bignum gradtext">$230B</div><h3>by 2033 · ~12% CAGR</h3><p>Up from ~$93B today. AirType is a wearable input device — light, private, all-day.</p></div>
+      <div class="card reveal"><div class="num">XR · AR + VR</div><div class="bignum" style="color:var(--index)">$106B</div><h3>by 2031 · ~32% CAGR</h3><p>From ~$20B; shipments grew 44% in 2025. These devices have no surface to type on — text entry is unsolved.</p></div>
+      <div class="card reveal"><div class="num">ASSISTIVE TECH</div><div class="bignum" style="color:var(--right)">~$97B</div><h3>by 2035 · ~10% CAGR</h3><p>From $25–37B. The beachhead: muscle-memory typing without relearning, for those who need it most.</p></div>
+    </div>
+    <p class="lead reveal" style="margin-top:30px">Beachhead first — the <b>1.3 billion people</b> who need some form of assistive input — then expand into XR text entry and mainstream mobile/desktop as the decoder sharpens.</p>
+  </div>
+</section>
+
+<!-- COMPETITION -->
+<section class="band alt" id="competition">
+  <div class="wrap">
+    <div class="reveal">
+      <div class="kicker">Competition</div>
+      <h2>The most attractive lane is still open.</h2>
+      <p class="lead">Others ask you to learn a new input language, read only coarse gestures, or stay closed to one device. AirType's lane — <b>zero relearning + per-finger fidelity + haptics + open HID</b> — is unoccupied, and the decoder is the moat that compounds with data.</p>
+    </div>
+    <div class="cmp-wrap reveal">
+      <table class="cmp">
+        <thead><tr><th>Approach</th><th>Relearn?</th><th>Per-finger</th><th>Haptics</th><th>Output</th></tr></thead>
+        <tbody>
+          <tr class="me"><th>AirType (gloves)</th><td class="yes">None — QWERTY</td><td class="yes">High</td><td class="yes">Yes</td><td class="yes">Open BLE HID</td></tr>
+          <tr><th>Tap Strap / TapXR</th><td class="no">1–2 hrs, new alphabet</td><td class="mid">Per-finger taps</td><td class="no">No</td><td class="mid">Closed app</td></tr>
+          <tr><th>Meta Neural Band</th><td class="mid">New gestures</td><td class="mid">Wrist sEMG</td><td class="no">No</td><td class="no">Meta-only</td></tr>
+          <tr><th>Gest / Maestro</th><td class="no">New gestures</td><td class="mid">Coarse</td><td class="no">No</td><td class="no">Discontinued</td></tr>
+          <tr><th>Academic gloves</th><td class="mid">Varies</td><td class="mid">Varies</td><td class="no">Rare</td><td class="no">Research, 18–30 WPM</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ROADMAP -->
+<section class="band" id="plan">
+  <div class="wrap">
+    <div class="reveal">
+      <div class="kicker">Roadmap</div>
+      <h2>Concept → MVP in four phases.</h2>
+      <p class="lead">A staged path from breadboard to a two-hand product, de-risking the decoder with real data at every step.</p>
+    </div>
+    <div class="steps">
+      <div class="step reveal"><div class="sn"></div><div><h3>Breadboard &amp; first corpus · 0–3 months</h3><p>Single-finger rig, sensor selection, and the first labelled typing dataset to prove the signal.</p></div></div>
+      <div class="step reveal"><div class="sn"></div><div><h3>Single-hand MVP · 3–9 months</h3><p>One instrumented glove, home-row decoder, Bluetooth HID out — typing real words on a real device.</p></div></div>
+      <div class="step reveal"><div class="sn"></div><div><h3>Two-hand + air mode · 9–18 months</h3><p>Full QWERTY across both hands, surfaceless "air" typing, calibration + language-model decoding.</p></div></div>
+      <div class="step reveal"><div class="sn"></div><div><h3>XR &amp; accessibility GTM · 18+ months</h3><p>Harden the product, partner on XR text entry, and ship the assistive-input beachhead.</p></div></div>
+    </div>
+    <div class="cta reveal" style="margin-top:40px;justify-content:flex-start">
+      <a class="btn btn-primary" href="investors.html">The ask &amp; use of funds &nbsp;→</a>
+      <a class="btn btn-ghost" href="overview.html">Download the memo (PDF)</a>
+    </div>
+  </div>
+</section>
+
 <!-- CTA -->
 <section class="band cta-band alt">
   <div class="wrap reveal">
     <div class="kicker">See it move</div>
     <h2>Two ways to try it.</h2>
-    <p class="lead" style="margin-left:auto;margin-right:auto">The <b>Glove Demo</b> is an interactive 3D prototype of the sensor glove and keyboard↔mouse gesture. <b>Jazz Hands</b> uses your webcam to build a virtual keyboard and air-type live. Plus a full investor overview of the market and plan.</p>
+    <p class="lead" style="margin-left:auto;margin-right:auto">The <b>Glove Demo</b> is an interactive 3D prototype of the sensor glove and keyboard↔mouse gesture. <b>Jazz Hands</b> uses your webcam to build a virtual keyboard and air-type live. Or join the waitlist to follow along.</p>
     <div class="cta">
       <a class="btn btn-primary" href="demo.html">Glove Demo &nbsp;→</a>
       <a class="btn btn-ghost" href="jazz-hands.html">Jazz Hands Demo &nbsp;→</a>
-      <a class="btn btn-ghost" href="overview.html">Read the overview</a>
+      <a class="btn btn-ghost" href="waitlist.html">Join the waitlist</a>
     </div>
   </div>
 </section>
 
 <footer><div class="wrap">
   <span>© 2026 AirType · A Kessler Ventures concept</span>
-  <span><a href="demo.html">Glove Demo</a> &nbsp;·&nbsp; <a href="jazz-hands.html">Jazz Hands</a> &nbsp;·&nbsp; <a href="overview.html">Overview</a></span>
+  <span><a href="demo.html">Glove Demo</a> &nbsp;·&nbsp; <a href="jazz-hands.html">Jazz Hands</a> &nbsp;·&nbsp; <a href="use-cases.html">Use cases</a> &nbsp;·&nbsp; <a href="investors.html">Investors</a> &nbsp;·&nbsp; <a href="waitlist.html">Waitlist</a> &nbsp;·&nbsp; <a href="overview.html">Memo (PDF)</a></span>
 </div></footer>
 
 <script>
